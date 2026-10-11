@@ -119,6 +119,14 @@ main { max-width: 1100px; margin: 0 auto; padding: 64px var(--gutter) 40px; }
 .status { margin: 0 0 16px; color: var(--ink-soft); min-height: 1.5em; }
 .status.err { color: var(--warn-red); font-weight: 600; }
 
+.alts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 16px; font-size: 14px; color: var(--ink-soft); }
+.alts:empty { display: none; }
+.alts button {
+  font: 500 14px var(--sans); color: var(--isobar); background: #fff;
+  border: 1px solid var(--rule); border-radius: 4px; padding: 6px 10px; cursor: pointer;
+}
+.alts button[aria-pressed="true"] { background: var(--isobar); color: #fff; border-color: var(--isobar); }
+
 .report {
   background: var(--sheet);
   border: 1px solid var(--rule);

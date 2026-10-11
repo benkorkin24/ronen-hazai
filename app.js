@@ -98,17 +98,51 @@ function matchLocal(q) {
   return [...exact, ...starts, ...word, ...inc];
 }
 
+// Place search across all of Israel, in order: OpenStreetMap (Nominatim) → Photon → Open-Meteo.
+// Returns up to 5 candidates [{name, label, lat, lon}].
+const IL_BOX = { w: 34.2, s: 29.4, e: 35.95, n: 33.4 };
+const inIsrael = (p) => p.lat >= IL_BOX.s && p.lat <= IL_BOX.n && p.lon >= IL_BOX.w && p.lon <= IL_BOX.e;
+
+async function getJSON(url) {
+  const r = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+
+const GEOCODERS = [
+  async (q) => (await getJSON("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&countrycodes=il,ps"
+      + "&accept-language=he&q=" + encodeURIComponent(q)))
+    .map((x) => ({ name: x.name || x.display_name.split(",")[0], label: x.display_name.split(",").slice(0, 3).join(","),
+      lat: +x.lat, lon: +x.lon })),
+  async (q) => (await getJSON(`https://photon.komoot.io/api/?limit=6&bbox=${IL_BOX.w},${IL_BOX.s},${IL_BOX.e},${IL_BOX.n}&q=`
+      + encodeURIComponent(q))).features
+    .map((f) => ({ name: f.properties.name, label: [f.properties.name, f.properties.city || f.properties.state].filter(Boolean).join(", "),
+      lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0] })),
+  async (q) => ((await getJSON("https://geocoding-api.open-meteo.com/v1/search?count=5&language=he&format=json&countryCode=IL&name="
+      + encodeURIComponent(q))).results || [])
+    .map((x) => ({ name: x.name, label: [x.name, x.admin1].filter(Boolean).join(", "), lat: x.latitude, lon: x.longitude })),
+];
+
 async function geocode(q) {
-  const url = (cc) => "https://geocoding-api.open-meteo.com/v1/search?count=1&language=he&format=json"
-    + (cc ? "&countryCode=IL" : "") + "&name=" + encodeURIComponent(q.trim());
-  for (const cc of [true, false]) {
-    const r = await fetch(url(cc));
-    if (!r.ok) continue;
-    const j = await r.json();
-    const hit = j.results && j.results[0];
-    if (hit) return { name: hit.name, lat: hit.latitude, lon: hit.longitude };
+  q = q.trim();
+  // "קיבוץ סאסא" → also try "סאסא"
+  const stripped = q.replace(/^(קיבוץ|מושב|מושבה|יישוב|ישוב|העיר|עיר)\s+/, "");
+  const variants = stripped !== q ? [q, stripped] : [q];
+  let reachedAny = false;
+  for (const v of variants) {
+    for (const g of GEOCODERS) {
+      try {
+        const hits = (await g(v)).filter((h) => h.name && inIsrael(h));
+        reachedAny = true;
+        // drop near-duplicates (same place mapped several times)
+        const uniq = [];
+        for (const h of hits) if (!uniq.some((u) => km(u, h) < 3)) uniq.push(h);
+        if (uniq.length) return uniq.slice(0, 5);
+      } catch (e) { /* try the next service */ }
+    }
   }
-  return null;
+  if (!reachedAny) throw new Error("offline");
+  return [];
 }
 
 /* ---------- safety ---------- */
@@ -229,24 +263,56 @@ function show(loc, via) {
 }
 
 /* ---------- search ---------- */
+let searchSeq = 0;
 async function search(q) {
   q = (q || "").trim();
+  searchSeq++;
+  $("alts").innerHTML = "";
   if (!q) { setStatus("הקלידו שם של יישוב או מקום.", true); return; }
   closeSuggest();
   const local = matchLocal(q);
   if (local.length) { show(local[0]); scrollToReport(); return; }
 
-  setStatus(`מאתר את "${q}"…`);
+  setStatus(`מחפש את "${q}" במפה…`);
+  const token = ++searchSeq;
+  let hits;
   try {
-    const g = await geocode(q);
-    if (!g) { setStatus(`לא נמצא מקום בשם "${q}". נסו לכתוב את השם אחרת או לבחור מהרשימה.`, true); return; }
-    const { loc, dist } = nearest(g);
-    if (dist > 60) { setStatus(`"${g.name}" נמצא מחוץ לאזור התחזית של השירות המטאורולוגי הישראלי.`, true); return; }
-    show(loc, { name: g.name, dist });
-    scrollToReport();
+    hits = await geocode(q);
   } catch (e) {
-    setStatus("אין חיבור לאינטרנט לאיתור המקום. בחרו יישוב מהרשימה.", true);
+    hits = null;
   }
+  if (token !== searchSeq) return;   // a newer search started meanwhile
+  if (!hits || !hits.length) {
+    $("report").hidden = true;
+    setStatus(hits ? `לא נמצא מקום בשם "${q}". נסו לכתוב את השם אחרת, למשל בלי קיצורים.`
+      : "אין חיבור לאינטרנט לאיתור המקום. בחרו יישוב מהרשימה.", true);
+    return;
+  }
+  showPlace(hits[0]);
+  if (hits.length > 1) renderAlts(hits);
+}
+
+function showPlace(g) {
+  const { loc, dist } = nearest(g);
+  if (dist > 60) { $("report").hidden = true; setStatus(`"${g.name}" נמצא מחוץ לאזור התחזית של השירות המטאורולוגי הישראלי.`, true); return; }
+  show(loc, { name: g.name, dist });
+  scrollToReport();
+}
+
+function renderAlts(hits) {
+  const box = $("alts");
+  box.innerHTML = "<span>מקומות נוספים בשם הזה:</span>";
+  hits.forEach((h, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = h.label || h.name;
+    b.setAttribute("aria-pressed", i === 0);
+    b.addEventListener("click", () => {
+      box.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+      showPlace(h);
+    });
+    box.appendChild(b);
+  });
 }
 function scrollToReport() {
   $("report").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
