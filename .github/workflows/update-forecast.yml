@@ -1,0 +1,32 @@
+name: עדכון תחזית מהשירות המטאורולוגי
+
+on:
+  schedule:
+    - cron: "7 */2 * * *"   # every 2 hours
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: forecast
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch IMS data
+        run: python scripts/fetch_ims.py
+      - name: Commit if changed
+        run: |
+          git config user.name "ronen-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/forecast.json
+          git diff --cached --quiet || git commit -m "עדכון תחזית $(TZ=Asia/Jerusalem date '+%Y-%m-%d %H:%M')"
+          git push
