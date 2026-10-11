@@ -103,6 +103,24 @@ function matchLocal(q) {
 const IL_BOX = { w: 34.2, s: 29.4, e: 35.95, n: 33.4 };
 const inIsrael = (p) => p.lat >= IL_BOX.s && p.lat <= IL_BOX.n && p.lon >= IL_BOX.w && p.lon <= IL_BOX.e;
 
+/* ---------- IDF bases (bases.js) ---------- */
+const BASE_PREFIX = /^(בסיס חיל האוויר|בסיס חיל האויר|בסיס|מחנה|בחא)\s+/;
+const baseKey = (s) => norm((s || "").replace(/["'״׳`]/g, ""));
+function matchBase(q) {
+  const clean = (q || "").replace(/["'״׳`]/g, "").trim();
+  const hadPrefix = BASE_PREFIX.test(clean);
+  const full = baseKey(clean), bare = baseKey(clean.replace(BASE_PREFIX, ""));
+  return BASES.find((b) => baseKey(b.label) === full || b.names.some((n) => {
+    const k = baseKey(n);
+    return (k === full || k === bare) && (hadPrefix || !b.prefixOnly);
+  })) || null;
+}
+function suggestBases(q) {
+  const k = baseKey(q);
+  if (k.length < 2) return [];
+  return BASES.filter((b) => [b.label, ...b.names].some((n) => baseKey(n).startsWith(k)));
+}
+
 async function getJSON(url) {
   const r = await fetch(url, { headers: { Accept: "application/json" } });
   if (!r.ok) throw new Error("HTTP " + r.status);
@@ -270,6 +288,8 @@ async function search(q) {
   $("alts").innerHTML = "";
   if (!q) { setStatus("הקלידו שם של יישוב או מקום.", true); return; }
   closeSuggest();
+  const base = matchBase(q);
+  if (base) { showPlace({ name: base.label, lat: base.lat, lon: base.lon }); return; }
   const local = matchLocal(q);
   if (local.length) { show(local[0]); scrollToReport(); return; }
 
@@ -322,7 +342,7 @@ let sugIdx = -1;
 function renderSuggest() {
   const q = $("q").value;
   const list = $("suggest");
-  const items = matchLocal(q).slice(0, 8);
+  const items = [...suggestBases(q).map((b) => ({ n: b.label })), ...matchLocal(q)].slice(0, 8);
   sugIdx = -1;
   list.innerHTML = "";
   if (!items.length || norm(q) === (items[0] && items[0].key) && items.length === 1) { closeSuggest(); return; }

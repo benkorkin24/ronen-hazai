@@ -1,5 +1,5 @@
-const CACHE = "ronen-v2";
-const SHELL = ["./", "index.html", "styles.css", "app.js", "manifest.json",
+const CACHE = "ronen-v3";
+const SHELL = ["./", "index.html", "styles.css", "app.js", "bases.js", "manifest.json",
   "img/hero.jpg", "icons/icon-192.png"];
 
 self.addEventListener("install", (e) => {
