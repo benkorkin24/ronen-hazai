@@ -175,7 +175,10 @@ const dedupe = (t) => [...new Set(t.split(/(?<=\.)\s+/).map((x) => x.trim()).fil
 const COLOR_HEX = { yellow: "#E8B90C", orange: "#E07A10", red: "#C0281F" };
 
 function officialAlerts(loc) {
+  // the data file is refreshed every 2 hours, so drop warnings that expired since
+  const now = new Date().toLocaleString("sv-SE", { timeZone: "Asia/Jerusalem" }).slice(0, 16);
   return (DB.warnings || [])
+    .filter((w) => !w.to || w.to.slice(0, 16) > now)
     .filter((w) => w.regions.includes(String(loc.r)) || w.regions.length === 0)
     .sort((a, b) => (a.from || "").localeCompare(b.from || ""))
     .map((w) => {
@@ -402,6 +405,141 @@ function exportExcel() {
   XLSX.writeFile(wb, `רונן_החזאי_${safe}_${days[0][0]}.xlsx`);
 }
 
+/* ---------- unified export (up to 15 places) ---------- */
+const MULTI_MAX = 15;
+let multi = [];   // [{query, label, loc, via}]
+
+// Same order as the main search: IDF base → IMS location → map search (first hit).
+async function resolvePlace(q) {
+  const base = matchBase(q);
+  if (base) return fromPoint({ name: base.label, lat: base.lat, lon: base.lon });
+  const local = matchLocal(q);
+  if (local.length) return { label: local[0].n, loc: local[0], via: null };
+  const hits = await geocode(q);
+  if (!hits.length) throw new Error(`לא נמצא מקום בשם "${q}".`);
+  return fromPoint(hits[0]);
+}
+function fromPoint(g) {
+  const { loc, dist } = nearest(g);
+  if (dist > 60) throw new Error(`"${g.name}" נמצא מחוץ לאזור התחזית של השירות המטאורולוגי הישראלי.`);
+  return { label: g.name, loc, via: dist > 1 ? { name: g.name, dist } : null };
+}
+
+function multiMsg(text, isErr) {
+  $("multiMsg").textContent = text || "";
+  $("multiMsg").classList.toggle("err", !!isErr);
+}
+
+function renderMulti() {
+  const list = $("multiList");
+  list.innerHTML = "";
+  multi.forEach((m, i) => {
+    const li = document.createElement("li");
+    li.innerHTML = '<span class="m-name"></span><span class="m-st"></span><button type="button" class="m-rm">הסרה</button>';
+    li.querySelector(".m-name").textContent = m.label;
+    li.querySelector(".m-st").textContent = m.via
+      ? `תחזית מתחנת ${m.loc.n}, ${fmt(m.via.dist)} ק״מ`
+      : "תחנה של השירות המטאורולוגי";
+    li.querySelector(".m-rm").setAttribute("aria-label", "הסרת " + m.label);
+    li.querySelector(".m-rm").addEventListener("click", () => {
+      multi.splice(i, 1);
+      multiMsg("");
+      renderMulti();
+    });
+    list.appendChild(li);
+  });
+  $("multiCount").textContent = `${multi.length} מתוך ${MULTI_MAX}`;
+  $("multiExport").disabled = !multi.length;
+  const full = multi.length >= MULTI_MAX;
+  $("multiQ").disabled = full;
+  $("multiForm").querySelector("button").disabled = full;
+  if (full) $("multiQ").value = "";
+  if (full) multiMsg("הגעתם ל-15 מקומות. כדי להוסיף מקום אחר, הסירו אחד מהרשימה.");
+}
+
+async function addMulti(q) {
+  q = (q || "").trim();
+  if (!q) return;
+  if (multi.length >= MULTI_MAX) return;
+  if (multi.some((m) => norm(m.label) === norm(q))) { multiMsg(`"${q}" כבר ברשימה.`, true); return; }
+  multiMsg(`מחפש את "${q}"…`);
+  try {
+    const r = await resolvePlace(q);
+    if (multi.some((m) => m.label === r.label)) { multiMsg(`"${r.label}" כבר ברשימה.`, true); return; }
+    multi.push({ query: q, ...r });
+    $("multiQ").value = "";
+    multiMsg(`נוסף: ${r.label}`);
+    renderMulti();
+  } catch (e) {
+    multiMsg(e.message === "offline" ? "אין חיבור לאינטרנט לאיתור המקום." : e.message + " נסו לכתוב את השם אחרת.", true);
+  }
+  $("multiQ").focus();
+}
+
+function openMulti() {
+  if (!$("placeList").children.length) {
+    const opts = [...BASES.map((b) => b.label), ...LOCS.map((l) => l.n)];
+    $("placeList").innerHTML = opts.map((n) => `<option value="${n.replace(/"/g, "&quot;")}"></option>`).join("");
+  }
+  // start from the place on screen
+  if (!multi.length && current) {
+    multi.push(current.via
+      ? { label: current.via.name, loc: current.loc, via: current.via }
+      : { label: current.loc.n, loc: current.loc, via: null });
+  }
+  multiMsg("");
+  renderMulti();
+  $("multi").showModal();
+  if (!$("multiQ").disabled) $("multiQ").focus();
+}
+
+function exportMulti() {
+  if (!multi.length) return;
+  if (!window.XLSX) { multiMsg("רכיב הייצוא לאקסל עוד לא נטען. נסו שוב בעוד רגע.", true); return; }
+  const head = ["מקום", "תחנת השירות המטאורולוגי", "מרחק מהתחנה (ק״מ)", "תאריך", "יום", "מצב",
+    "טמפ׳ מקסימלית (°C)", "טמפ׳ מינימלית (°C)", "סיכוי לגשם (%)", "כמות גשם (מ״מ)", "רוח (קמ״ש)", "משבים (קמ״ש)", "UV", "לחות ממוצעת (%)", "התרעות רשמיות פעילות"];
+  const rows = [
+    ["רונן החזאי – קובץ אחוד"],
+    ["מקומות", multi.length],
+    ["עדכון אחרון", DB.updated],
+    ["מקור", DB.source],
+    [],
+    head,
+  ];
+  const alertRows = [["מקום", "תחנה", "סוג", "פירוט"]];
+  for (const m of multi) {
+    const days = Object.entries(m.loc.d).sort(([a], [b]) => a.localeCompare(b)).slice(0, DAYS);
+    const alerts = officialAlerts(m.loc);
+    const notes = derivedNotes(days);
+    for (const [iso, d] of days) {
+      rows.push([
+        m.label, m.loc.n, m.via ? Math.round(m.via.dist) : 0,
+        iso.split("-").reverse().join("/"), dayName(iso), DB.codes[d.c] || "",
+        d.mx, d.mn, d.rc == null ? null : Math.round(d.rc), d.rm, d.w, d.g, d.uv, d.h,
+        alerts.length ? `${alerts.length} (ראו גיליון התרעות)` : "אין",
+      ]);
+    }
+    if (!alerts.length && !notes.length) alertRows.push([m.label, m.loc.n, "", "אין התרעות רשמיות לאזור זה"]);
+    alerts.forEach((a) => alertRows.push([m.label, m.loc.n, `${a.kind} (השירות המטאורולוגי)`, a.text]));
+    notes.forEach((n) => alertRows.push([m.label, m.loc.n, "הערת בטיחות לפי התחזית", `${n.day} – ${n.text}`]));
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws["!cols"] = [{ wch: 24 }, { wch: 20 }, { wch: 10 }, { wch: 12 }, { wch: 11 }, { wch: 20 }, { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 10 }, { wch: 10 }, { wch: 6 }, { wch: 11 }, { wch: 22 }];
+  ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }];
+  ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 5, c: 0 }, e: { r: rows.length - 1, c: head.length - 1 } }) };
+  const ws2 = XLSX.utils.aoa_to_sheet(alertRows);
+  ws2["!cols"] = [{ wch: 24 }, { wch: 20 }, { wch: 28 }, { wch: 110 }];
+
+  const wb = XLSX.utils.book_new();
+  wb.Workbook = { Views: [{ RTL: true }] };
+  XLSX.utils.book_append_sheet(wb, ws, "תחזית אחודה");
+  XLSX.utils.book_append_sheet(wb, ws2, "התרעות ובטיחות");
+  const firstDay = Object.keys(multi[0].loc.d).sort()[0];
+  XLSX.writeFile(wb, `רונן_החזאי_קובץ_אחוד_${multi.length}_מקומות_${firstDay}.xlsx`);
+  multiMsg(`הקובץ האחוד ירד, עם ${multi.length} מקומות.`);
+}
+
 /* ---------- geolocation ---------- */
 function useMyLocation() {
   if (!navigator.geolocation) { setStatus("הדפדפן לא תומך באיתור מיקום.", true); return; }
@@ -429,6 +567,9 @@ async function boot() {
   q.addEventListener("blur", () => setTimeout(closeSuggest, 120));
   $("searchForm").addEventListener("submit", (e) => { e.preventDefault(); search(q.value); });
   $("exportBtn").addEventListener("click", exportExcel);
+  $("multiBtn").addEventListener("click", openMulti);
+  $("multiForm").addEventListener("submit", (e) => { e.preventDefault(); addMulti($("multiQ").value); });
+  $("multiExport").addEventListener("click", exportMulti);
   $("locBtn").addEventListener("click", useMyLocation);
 
   setStatus("טוען נתונים מהשירות המטאורולוגי…");
