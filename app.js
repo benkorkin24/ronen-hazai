@@ -373,6 +373,32 @@ function moveSuggest(dir) {
 }
 
 /* ---------- excel ---------- */
+const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+// On phones (an installed app on iPhone in particular) a plain download link does nothing,
+// so hand the file to the system share sheet: "Save to Files", WhatsApp, mail, etc.
+// Computers, and phones without file sharing, get a regular download.
+async function saveWorkbook(wb, name) {
+  const data = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  const file = new File([data], name, { type: XLSX_MIME });
+  const mobile = matchMedia("(pointer: coarse)").matches;
+  if (mobile && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: name });
+      return "shared";
+    } catch (e) {
+      if (e.name === "AbortError") return "cancelled";
+      // otherwise fall through to a regular download
+    }
+  }
+  const url = URL.createObjectURL(file);
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  return "downloaded";
+}
+
 function exportExcel() {
   if (!current) return;
   if (!window.XLSX) { setStatus("רכיב הייצוא לאקסל עוד לא נטען. נסו שוב בעוד רגע.", true); return; }
@@ -402,7 +428,7 @@ function exportExcel() {
   wb.Workbook = { Views: [{ RTL: true }] };
   XLSX.utils.book_append_sheet(wb, ws, "תחזית");
   const safe = loc.n.replace(/[\\/:*?"<>|,]/g, "").replace(/\s+/g, "_");
-  XLSX.writeFile(wb, `רונן_החזאי_${safe}_${days[0][0]}.xlsx`);
+  saveWorkbook(wb, `רונן_החזאי_${safe}_${days[0][0]}.xlsx`);
 }
 
 /* ---------- unified export (up to 15 places) ---------- */
@@ -536,8 +562,12 @@ function exportMulti() {
   XLSX.utils.book_append_sheet(wb, ws, "תחזית אחודה");
   XLSX.utils.book_append_sheet(wb, ws2, "התרעות ובטיחות");
   const firstDay = Object.keys(multi[0].loc.d).sort()[0];
-  XLSX.writeFile(wb, `רונן_החזאי_קובץ_אחוד_${multi.length}_מקומות_${firstDay}.xlsx`);
-  multiMsg(`הקובץ האחוד ירד, עם ${multi.length} מקומות.`);
+  const count = multi.length === 1 ? "מקום אחד" : `${multi.length} מקומות`;
+  saveWorkbook(wb, `רונן_החזאי_קובץ_אחוד_${multi.length}_מקומות_${firstDay}.xlsx`).then((how) => {
+    if (how === "shared") multiMsg(`הקובץ האחוד מוכן, עם ${count}.`);
+    else if (how === "downloaded") multiMsg(`הקובץ האחוד ירד לתיקיית ההורדות, עם ${count}.`);
+    else multiMsg("השמירה בוטלה. אפשר ללחוץ שוב על הורדת הקובץ.");
+  });
 }
 
 /* ---------- geolocation ---------- */
