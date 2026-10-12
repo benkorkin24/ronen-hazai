@@ -28,15 +28,31 @@ def num(v):
         return None
 
 
-def summarize_day(day):
+def summarize_day(day, wind_deg):
     d = day.get("daily") or {}
-    hours = list((day.get("hourly") or {}).values())
+    hours = sorted((day.get("hourly") or {}).values(), key=lambda h: h.get("hour") or "")
 
     def col(k):
         return [x for x in (num(h.get(k)) for h in hours) if x is not None]
 
-    rc, rain, wind, gust, hum, hs = (col(k) for k in
-        ("rain_chance", "rain", "wind_speed", "gust_speed", "relative_humidity", "heat_stress_level"))
+    rc, rain, wind, gust, hum, hs, feel, chill, pm, wave = (col(k) for k in (
+        "rain_chance", "rain", "wind_speed", "gust_speed", "relative_humidity",
+        "heat_stress_level", "heat_stress", "wind_chill", "pm10", "wave_height"))
+
+    # wind direction at the windiest hour, in degrees
+    wd = None
+    if hours:
+        top = max(hours, key=lambda h: num(h.get("wind_speed")) or -1)
+        wd = wind_deg.get(str(top.get("wind_direction_id")))
+
+    # hours with a meaningful chance of rain (>= 30%)
+    wet = [int(h["hour"]) for h in hours if (num(h.get("rain_chance")) or 0) >= 30 and h.get("hour")]
+
+    # 3-hourly series for the chart: [hour, temp, rain chance, wind]
+    series = [[int(h["hour"]), num(h.get("precise_temperature") or h.get("temperature")),
+               num(h.get("rain_chance")), num(h.get("wind_speed"))]
+              for h in hours if h.get("hour") and int(h["hour"]) % 3 == 0]
+
     return {
         "c": d.get("weather_code"),
         "mn": num(d.get("minimum_temperature")),
@@ -46,8 +62,15 @@ def summarize_day(day):
         "rm": round(sum(rain), 1) if rain else None,
         "w": max(wind) if wind else None,
         "g": max(gust) if gust else None,
+        "wd": wd,
         "h": round(sum(hum) / len(hum)) if hum else None,
         "hs": max(hs) if hs else None,
+        "fx": round(max(feel)) if feel else None,
+        "fn": round(min(chill)) if chill else None,
+        "pm": round(max(pm)) if pm else None,
+        "wv": max(wave) if wave else None,
+        "wet": [min(wet), max(wet)] if wet else None,
+        "s": series,
     }
 
 
@@ -56,6 +79,8 @@ def main():
     today = datetime.now(tz).strftime("%Y-%m-%d")
     locs = get("locations_info")
     codes = {k: v["desc"] for k, v in get("weather_codes").items()}
+    wind_deg = {k: int(v["direction"]) % 360 for k, v in get("wind_directions").items()}
+    heat_levels = get("heat_stress_levels")
     out_locs, country = {}, {}
     for lid, loc in locs.items():
         try:
@@ -67,12 +92,13 @@ def main():
         for date, day in sorted(data.items()):
             if date < today:
                 continue
-            days[date] = summarize_day(day)
+            days[date] = summarize_day(day, wind_deg)
             desc = (day.get("country") or {}).get("description")
             if desc and date not in country:
                 country[date] = desc.strip()
         out_locs[lid] = {"n": loc["name"], "lat": num(loc["lat"]), "lon": num(loc["lon"]),
-                         "r": loc.get("rid"), "d": days}
+                         "r": loc.get("rid"), "alt": num(loc.get("height")),
+                         "coast": loc.get("near_coast") == "1", "d": days}
         time.sleep(0.15)
 
     warnings = {}
@@ -98,7 +124,7 @@ def main():
     warnings = [w for w in warnings.values() if (w["to"] or "9999") >= now]
     OUT.parent.mkdir(exist_ok=True)
     OUT.write_text(json.dumps({"updated": now, "source": "השירות המטאורולוגי הישראלי – ims.gov.il",
-                               "codes": codes, "country": country, "locations": out_locs,
+                               "codes": codes, "heat": heat_levels, "country": country, "locations": out_locs,
                                "warnings": warnings}, ensure_ascii=False, separators=(",", ":")))
     print(f"wrote {len(out_locs)} locations, {len(warnings)} warnings")
 

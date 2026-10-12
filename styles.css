@@ -1,4 +1,8 @@
 :root {
+  --risk-0: #2E7D4F;
+  --risk-1: #E8B90C;
+  --risk-2: #E07A10;
+  --risk-3: #C0281F;
   --storm: #1B2229;
   --storm-2: #2C3640;
   --paper: #EEF1F3;
@@ -178,6 +182,57 @@ main { max-width: 1100px; margin: 0 auto; padding: 64px var(--gutter) 40px; }
 .place { font: 700 clamp(32px, 6vw, 52px)/1.05 var(--serif); margin: 0; }
 .meta { margin: 8px 0 0; color: var(--ink-soft); font-size: 14px; }
 
+/* executive brief: bottom line first */
+.brief {
+  --risk: var(--risk-0);
+  margin-top: 24px;
+  border: 1px solid var(--rule);
+  border-inline-start: 8px solid var(--risk);
+  border-radius: 2px;
+  background: #F7F9FA;
+}
+.brief.risk-1 { --risk: var(--risk-1); }
+.brief.risk-2 { --risk: var(--risk-2); }
+.brief.risk-3 { --risk: var(--risk-3); }
+.brief-verdict { display: flex; gap: 14px; align-items: flex-start; padding: 18px 20px 16px; }
+.risk-mark { flex: none; width: 14px; height: 14px; margin-top: 7px; border-radius: 50%; background: var(--risk); box-shadow: 0 0 0 4px color-mix(in srgb, var(--risk) 22%, transparent); }
+.risk-label { font: 700 clamp(20px, 3vw, 26px)/1.2 var(--serif); }
+.brief-text { margin: 6px 0 0; color: var(--ink-soft); max-width: 72ch; }
+.facts {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  margin: 0; border-top: 1px solid var(--rule);
+}
+.facts > div { padding: 12px 20px 14px; border-inline-start: 1px solid var(--rule); border-top: 1px solid var(--rule); margin-top: -1px; }
+.facts > div:nth-child(3n + 1) { border-inline-start: 0; }
+.facts dt { font-size: 13px; color: var(--ink-soft); }
+.facts dd { margin: 2px 0 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.facts .fv { font-size: 21px; font-weight: 700; unicode-bidi: isolate; white-space: nowrap; }
+.facts .fs { font-size: 13px; color: var(--ink-soft); }
+
+/* chart */
+.chart { position: relative; margin: 28px 0 0; }
+.chart-title { font: 700 18px var(--serif); margin-bottom: 4px; }
+.chart-body { width: 100%; overflow: hidden; touch-action: pan-y; }
+.chart svg { display: block; font-family: var(--sans); }
+.chart .grid { stroke: #E3E8EC; stroke-width: 1; }
+.chart .daysep { stroke: var(--rule); stroke-width: 1; stroke-dasharray: 2 3; }
+.chart .ax { fill: var(--ink-soft); font-size: 11px; }
+.chart .dayl { fill: var(--ink); font-size: 12.5px; font-weight: 600; }
+.chart .panel { fill: var(--ink-soft); font-size: 12px; }
+.chart .tline { fill: none; stroke: var(--storm); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .tdot { fill: var(--storm); stroke: #fff; stroke-width: 2; }
+.chart .tlab { fill: var(--ink); font-size: 12px; font-weight: 700; }
+.chart .rbar { fill: var(--isobar); }
+.chart .cross { stroke: var(--ink-soft); stroke-width: 1; }
+.chart .hit { fill: transparent; cursor: crosshair; }
+.chart-tip {
+  position: absolute; top: 34px; pointer-events: none;
+  background: var(--storm); color: #fff; border-radius: 4px; padding: 7px 10px;
+  font-size: 13px; display: flex; gap: 10px; white-space: nowrap;
+  box-shadow: 0 8px 20px -8px rgba(27,34,41,.5);
+}
+.chart-tip strong { font-weight: 600; }
+
 /* official IMS warnings */
 .alerts { margin: 24px 0 8px; display: grid; gap: 10px; }
 .alert {
@@ -199,7 +254,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 64px var(--gutter) 40px; }
 
 /* forecast table */
 .table-wrap { margin-top: 20px; overflow-x: auto; }
-.fc { width: 100%; border-collapse: collapse; min-width: 640px; }
+.fc { width: 100%; border-collapse: collapse; min-width: 760px; }
 .fc th {
   text-align: start; font-size: 13px; font-weight: 600; color: var(--ink-soft);
   padding: 10px 10px; border-bottom: 2px solid var(--ink);
@@ -218,6 +273,15 @@ main { max-width: 1100px; margin: 0 auto; padding: 64px var(--gutter) 40px; }
 .rain-bar { flex: 1; height: 12px; background: var(--rain-0); border-radius: 2px; overflow: hidden; min-width: 70px; }
 .rain-bar i { display: block; height: 100%; background: var(--isobar); }
 .rain-pct { font-weight: 700; min-width: 3.2em; }
+.fc .sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+.wv { font-weight: 600; }
+.wv span { color: var(--ink-soft); font-weight: 500; }
+.aq { font-weight: 600; }
+.aq-good { color: var(--risk-0); }
+.aq-mid { color: #8A6A00; }
+.aq-bad { color: var(--risk-2); }
+.aq-severe { color: var(--risk-3); }
+.fc.no-wave .c-wave, .fc.no-wave .c-wave-h { display: none; }
 .uv-hi { color: var(--warn-orange); font-weight: 700; }
 .uv-xhi { color: var(--warn-red); font-weight: 700; }
 .units { font-size: 12.5px; color: var(--ink-soft); margin: 12px 0 0; }
@@ -268,7 +332,12 @@ main { max-width: 1100px; margin: 0 auto; padding: 64px var(--gutter) 40px; }
   .fc td.c-cond { grid-area: cond; padding-inline-start: 6px; }
   .fc .cond svg { width: 28px; height: 28px; }
   .fc td.c-rain { grid-area: rain; }
-  .fc td.c-mm, .fc td.c-wind, .fc td.c-uv, .fc td.c-hum { display: none; }
+  .fc td.c-wind, .fc td.c-uv, .fc td.c-hum, .fc td.c-aq, .fc td.c-wave { display: none; }
+  .fc td.c-temp .sub { text-align: end; }
+  .facts > div { border-inline-start: 0; border-top: 1px solid var(--rule); }
+  .facts { grid-template-columns: 1fr 1fr; border-top: 0; }
+  .brief-verdict { padding: 16px; }
+  .facts > div { padding: 10px 16px 12px; }
   .fc td.c-extra { display: block; grid-area: extra; font-size: 13.5px; color: var(--ink-soft); }
 }
 @media (min-width: 701px) { .fc td.c-extra { display: none; } }
@@ -277,3 +346,4 @@ main { max-width: 1100px; margin: 0 auto; padding: 64px var(--gutter) 40px; }
   .report.enter { animation: rise .45s ease-out; }
   @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
 }
+.chart-tip[hidden] { display: none; }

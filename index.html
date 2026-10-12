@@ -62,7 +62,15 @@
       </div>
     </div>
 
+    <div class="brief" id="brief"></div>
+
     <div class="alerts" id="alerts"></div>
+
+    <figure class="chart" id="chart">
+      <figcaption class="chart-title">מהלך 5 הימים, כל 3 שעות</figcaption>
+      <div class="chart-body" id="chartBody"></div>
+      <div class="chart-tip" id="chartTip" hidden></div>
+    </figure>
 
     <div class="table-wrap">
       <table class="fc" id="fcTable">
@@ -71,18 +79,19 @@
           <tr>
             <th scope="col">יום</th>
             <th scope="col">מצב</th>
-            <th scope="col" class="num">מקס׳ / מינ׳</th>
-            <th scope="col" class="rain-col">סיכוי לגשם</th>
-            <th scope="col" class="num">כמות גשם</th>
-            <th scope="col" class="num">רוח / משבים</th>
+            <th scope="col">טמפרטורה</th>
+            <th scope="col" class="rain-col">גשם</th>
+            <th scope="col">רוח</th>
             <th scope="col" class="num">UV</th>
+            <th scope="col">איכות אוויר</th>
+            <th scope="col" class="num c-wave-h">גלים</th>
             <th scope="col" class="num">לחות</th>
           </tr>
         </thead>
         <tbody id="fcBody"></tbody>
       </table>
     </div>
-    <p class="units">טמפרטורה ב-°C · גשם במ״מ · רוח בקמ״ש · סיכוי לגשם = הסיכוי הגבוה ביותר באותו יום</p>
+    <p class="units">טמפרטורה ב-°C. גשם במ״מ. רוח בקמ״ש. גלים במטרים. איכות אוויר לפי ריכוז חלקיקים (PM10, מק״ג למ״ק). הסיכוי לגשם הוא הגבוה ביותר באותו יום.</p>
 
     <div class="national" id="national"></div>
   </section>
