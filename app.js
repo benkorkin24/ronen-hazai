@@ -375,14 +375,15 @@ function moveSuggest(dir) {
 /* ---------- excel ---------- */
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-// On phones (an installed app on iPhone in particular) a plain download link does nothing,
-// so hand the file to the system share sheet: "Save to Files", WhatsApp, mail, etc.
-// Computers, and phones without file sharing, get a regular download.
+// The file is built on the device itself; nothing is uploaded anywhere.
+// Android and computers: a regular download into the Downloads folder.
+// iPhone/iPad: Safari, and especially an app added to the home screen, ignore download links,
+// so the file goes to the iOS sheet where "Save to Files" stores it on the phone.
 async function saveWorkbook(wb, name) {
   const data = XLSX.write(wb, { bookType: "xlsx", type: "array" });
   const file = new File([data], name, { type: XLSX_MIME });
-  const mobile = matchMedia("(pointer: coarse)").matches;
-  if (mobile && navigator.canShare && navigator.canShare({ files: [file] })) {
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (ios && navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: name });
       return "shared";
@@ -564,7 +565,7 @@ function exportMulti() {
   const firstDay = Object.keys(multi[0].loc.d).sort()[0];
   const count = multi.length === 1 ? "מקום אחד" : `${multi.length} מקומות`;
   saveWorkbook(wb, `רונן_החזאי_קובץ_אחוד_${multi.length}_מקומות_${firstDay}.xlsx`).then((how) => {
-    if (how === "shared") multiMsg(`הקובץ האחוד מוכן, עם ${count}.`);
+    if (how === "shared") multiMsg(`הקובץ האחוד מוכן, עם ${count}. כדי לשמור בטלפון בחרו "שמירה בקבצים".`);
     else if (how === "downloaded") multiMsg(`הקובץ האחוד ירד לתיקיית ההורדות, עם ${count}.`);
     else multiMsg("השמירה בוטלה. אפשר ללחוץ שוב על הורדת הקובץ.");
   });
