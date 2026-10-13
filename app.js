@@ -1028,7 +1028,17 @@ async function boot() {
   if (startCode) { q.value = startCode.name; const { loc, dist } = nearest(startCode); show(loc, { name: startCode.name, dist, code: true }); }
   else if (start) { q.value = start.n; show(start); }
 
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+  if ("serviceWorker" in navigator) {
+    // when a new version installs, reload once so it takes effect right away
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (hadController && !reloaded) { reloaded = true; location.reload(); }
+    });
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" })
+      .then((reg) => { reg.update(); document.addEventListener("visibilitychange", () => { if (!document.hidden) reg.update(); }); })
+      .catch(() => {});
+  }
 
   // live updates: re-check for new IMS data every 5 minutes while open, and on return to the app
   setInterval(refreshData, 5 * 60 * 1000);
