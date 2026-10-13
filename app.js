@@ -46,7 +46,10 @@ function setStatus(msg, isErr) {
 
 function updatedText() {
   const [d, t] = DB.updated.split(" ");
-  return `${shortDate(d)} בשעה ${t}`;
+  const nowIL = new Date(new Date().toLocaleString("sv-SE", { timeZone: "Asia/Jerusalem" }).replace(" ", "T"));
+  const mins = Math.round((nowIL - new Date(DB.updated.replace(" ", "T"))) / 60000);
+  const ago = mins < 2 ? "ממש עכשיו" : mins < 60 ? `לפני ${mins} דקות` : mins < 120 ? "לפני שעה" : `לפני ${Math.floor(mins / 60)} שעות`;
+  return `${shortDate(d)} בשעה ${t} (${ago})`;
 }
 
 const WIND_DIRS = ["צפונית", "צפון-מזרחית", "מזרחית", "דרום-מזרחית", "דרומית", "דרום-מערבית", "מערבית", "צפון-מערבית"];
@@ -409,7 +412,7 @@ let chartResize;
 addEventListener("resize", () => { clearTimeout(chartResize); chartResize = setTimeout(() => chartDays && renderChart(chartDays), 150); });
 
 /* ---------- render ---------- */
-function show(loc, via) {
+function show(loc, via, quiet) {
   const days = Object.entries(loc.d).sort(([a], [b]) => a.localeCompare(b)).slice(0, DAYS);
   current = { loc, days, alerts: officialAlerts(loc), notes: derivedNotes(days), via };
 
@@ -486,7 +489,7 @@ function show(loc, via) {
 
   const rep = $("report");
   rep.hidden = false;
-  rep.classList.remove("enter"); void rep.offsetWidth; rep.classList.add("enter");
+  if (!quiet) { rep.classList.remove("enter"); void rep.offsetWidth; rep.classList.add("enter"); }
   renderChart(days);   // after the report is visible, so the chart can measure its width
   setStatus("");
   try { localStorage.setItem("ronen-last", loc.id); } catch (e) {}
@@ -836,5 +839,29 @@ async function boot() {
   if (start) { q.value = start.n; show(start); }
 
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+
+  // live updates: re-check for new IMS data every 5 minutes while open, and on return to the app
+  setInterval(refreshData, 5 * 60 * 1000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshData(); });
+}
+
+let refreshing = false;
+async function refreshData() {
+  if (refreshing || !DB) return;
+  refreshing = true;
+  try {
+    const before = DB.updated;
+    await loadData();
+    if (current) {
+      const loc = LOCS.find((l) => l.id === current.loc.id);
+      if (loc) show(loc, current.via, true);
+    }
+    if (DB.updated !== before) flashUpdated();
+  } catch (e) { /* offline: keep showing what we have */ }
+  refreshing = false;
+}
+function flashUpdated() {
+  const m = $("meta");
+  m.classList.remove("fresh"); void m.offsetWidth; m.classList.add("fresh");
 }
 boot();

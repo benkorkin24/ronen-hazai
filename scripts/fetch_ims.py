@@ -1,6 +1,7 @@
 """Fetch forecasts and warnings from the Israel Meteorological Service (ims.gov.il)
 and write a compact data/forecast.json for the app."""
 import json, time, urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -82,11 +83,20 @@ def main():
     wind_deg = {k: int(v["direction"]) % 360 for k, v in get("wind_directions").items()}
     heat_levels = get("heat_stress_levels")
     out_locs, country = {}, {}
-    for lid, loc in locs.items():
+    def fetch(lid):
         try:
-            data = get(f"full_forecast_data/{lid}")
+            return lid, get(f"full_forecast_data/{lid}")
         except Exception as e:
-            print("skip", lid, loc["name"], e)
+            print("skip", lid, locs[lid]["name"], e)
+            return lid, None
+
+    # a few requests in parallel: a full refresh takes about a minute instead of six
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        results = dict(pool.map(fetch, locs))
+
+    for lid, loc in locs.items():
+        data = results.get(lid)
+        if data is None:
             continue
         days = {}
         for date, day in sorted(data.items()):
@@ -99,7 +109,6 @@ def main():
         out_locs[lid] = {"n": loc["name"], "lat": num(loc["lat"]), "lon": num(loc["lon"]),
                          "r": loc.get("rid"), "alt": num(loc.get("height")),
                          "coast": loc.get("near_coast") == "1", "d": days}
-        time.sleep(0.15)
 
     warnings = {}
     try:
@@ -122,10 +131,21 @@ def main():
 
     now = datetime.now(tz).strftime("%Y-%m-%d %H:%M")
     warnings = [w for w in warnings.values() if (w["to"] or "9999") >= now]
+    if len(out_locs) < len(locs) * 0.8:
+        raise SystemExit(f"only {len(out_locs)}/{len(locs)} locations fetched; keeping the previous file")
+    body = {"source": "השירות המטאורולוגי הישראלי – ims.gov.il", "codes": codes, "heat": heat_levels,
+            "country": country, "locations": out_locs, "warnings": warnings}
+    # rewrite (and so commit) only when IMS data actually changed, not just the clock
+    try:
+        prev = json.loads(OUT.read_text())
+        prev.pop("updated", None)
+        if prev == json.loads(json.dumps(body)):
+            print("no change in IMS data")
+            return
+    except (FileNotFoundError, ValueError):
+        pass
     OUT.parent.mkdir(exist_ok=True)
-    OUT.write_text(json.dumps({"updated": now, "source": "השירות המטאורולוגי הישראלי – ims.gov.il",
-                               "codes": codes, "heat": heat_levels, "country": country, "locations": out_locs,
-                               "warnings": warnings}, ensure_ascii=False, separators=(",", ":")))
+    OUT.write_text(json.dumps({"updated": now, **body}, ensure_ascii=False, separators=(",", ":")))
     print(f"wrote {len(out_locs)} locations, {len(warnings)} warnings")
 
 

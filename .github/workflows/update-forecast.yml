@@ -2,7 +2,9 @@ name: עדכון תחזית מהשירות המטאורולוגי
 
 on:
   schedule:
-    - cron: "7 */2 * * *"   # every 2 hours
+    # every 15 minutes. GitHub delays and skips scheduled runs under load,
+    # so a short interval is what keeps the data close to live in practice
+    - cron: "*/15 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -15,7 +17,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

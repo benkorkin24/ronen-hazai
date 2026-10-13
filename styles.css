@@ -347,3 +347,8 @@ main { max-width: 1100px; margin: 0 auto; padding: 64px var(--gutter) 40px; }
   @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
 }
 .chart-tip[hidden] { display: none; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .meta.fresh { animation: fresh 2.4s ease-out; }
+  @keyframes fresh { 0%, 30% { background: #FDF3C7; } 100% { background: transparent; } }
+}
