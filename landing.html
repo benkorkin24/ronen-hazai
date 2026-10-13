@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>רונן החזאי – תחזית, סיכון והתרעות לכל מקום בארץ</title>
+<meta name="description" content="רונן החזאי: תחזית ל-5 ימים, רמת סיכון, התרעות רשמיות וקובץ אקסל בלחיצה, לכל יישוב, בסיס או נקודה בישראל. לפי נתוני השירות המטאורולוגי. חינם.">
+<meta name="theme-color" content="#1B2229">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&family=Frank+Ruhl+Libre:wght@900&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ["Rubik", "system-ui", "sans-serif"], brand: ["Frank Ruhl Libre", "serif"] },
+        colors: {
+          storm: { DEFAULT: "#1B2229", 2: "#2C3640", 3: "#3A4652" },
+          paper: "#EEF1F3",
+          ink: { DEFAULT: "#1B2229", soft: "#55616C" },
+          rule: "#D5DBE0",
+          isobar: { DEFAULT: "#24557A", dark: "#1C4566", soft: "#DCE7F0" },
+          warn: { yellow: "#E8B90C", orange: "#E07A10", red: "#C0281F" },
+          ok: "#2E7D4F",
+        },
+      },
+    },
+  };
+</script>
+<script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+<style>
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body { background: #EEF1F3; }
+  :focus-visible { outline: 3px solid #E8B90C; outline-offset: 3px; border-radius: 4px; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ---- the living sky: drifting cloud banks, rain and one lightning pulse ---- */
+  .sky { position: absolute; inset: 0; overflow: hidden; z-index: -1; background: #1B2229; }
+  .sky-photo { position: absolute; inset: -4%; width: 108%; height: 108%; object-fit: cover; object-position: 60% 40%; opacity: .78; }
+  .sky::after { content: ""; position: absolute; inset: 0;
+    background: linear-gradient(to top, rgba(27,34,41,.96) 0%, rgba(27,34,41,.55) 38%, rgba(27,34,41,.25) 70%, rgba(27,34,41,.55) 100%); }
+  .cloud { position: absolute; border-radius: 50%; filter: blur(40px); opacity: .55; background: radial-gradient(closest-side, #5d6b78, transparent); }
+  .c1 { width: 70vw; height: 30vh; top: 4%; right: -20vw; }
+  .c2 { width: 55vw; height: 26vh; top: 22%; right: 30vw; opacity: .4; }
+  .c3 { width: 80vw; height: 34vh; top: -6%; right: 55vw; opacity: .35; }
+  #rain { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .flash { position: absolute; inset: 0; background: radial-gradient(ellipse at 62% 30%, rgba(220,232,255,.55), transparent 60%); opacity: 0; mix-blend-mode: screen; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .sky-photo { animation: breathe 18s ease-in-out infinite alternate; }
+    .c1 { animation: drift 46s linear infinite; }
+    .c2 { animation: drift 64s linear infinite; animation-delay: -20s; }
+    .c3 { animation: drift 80s linear infinite; animation-delay: -45s; }
+    .flash { animation: flash 11s infinite; }
+    .live-dot { animation: pulse 2.4s ease-in-out infinite; }
+    .reveal { opacity: 0; transform: translateY(14px); transition: opacity .7s ease, transform .7s ease; }
+    .reveal.in { opacity: 1; transform: none; }
+  }
+  @keyframes breathe { from { transform: scale(1); } to { transform: scale(1.06) translateY(-1%); } }
+  @keyframes drift { from { transform: translateX(0); } to { transform: translateX(160vw); } }
+  @keyframes flash { 0%, 86%, 100% { opacity: 0; } 87% { opacity: .9; } 88% { opacity: .1; } 89.5% { opacity: .7; } 92% { opacity: 0; } }
+  @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(232,185,12,.55); } 50% { box-shadow: 0 0 0 7px rgba(232,185,12,0); } }
+
+  .rain-fill { transition: width .9s cubic-bezier(.2,.7,.2,1); }
+  .lift { transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; }
+  .lift:hover { transform: translateY(-3px); box-shadow: 0 18px 36px -22px rgba(27,34,41,.45); }
+</style>
+</head>
+<body class="font-sans text-ink antialiased">
+
+<a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:right-3 focus:z-50 focus:bg-white focus:px-4 focus:py-2 focus:rounded-md focus:shadow">דילוג לתוכן</a>
+
+<!-- ============ Header ============ -->
+<header id="top" class="fixed inset-x-0 top-0 z-40 transition-colors duration-300" data-header>
+  <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+    <a href="#top" class="flex items-center gap-3 text-white" aria-label="רונן החזאי, לראש העמוד">
+      <img src="icons/icon-192.png" alt="" class="h-10 w-10 rounded-lg ring-1 ring-white/20">
+      <span class="whitespace-nowrap font-brand text-xl leading-none sm:text-2xl">רונן החזאי</span>
+    </a>
+    <nav aria-label="ניווט בעמוד" class="hidden md:block">
+      <ul class="flex items-center gap-1 text-[15px] font-medium text-white/85">
+        <li><a class="rounded-md px-3 py-2 transition hover:bg-white/10 hover:text-white" href="#features">מה יש בו</a></li>
+        <li><a class="rounded-md px-3 py-2 transition hover:bg-white/10 hover:text-white" href="#how">איך זה עובד</a></li>
+        <li><a class="rounded-md px-3 py-2 transition hover:bg-white/10 hover:text-white" href="#uses">למי זה מתאים</a></li>
+        <li><a class="rounded-md px-3 py-2 transition hover:bg-white/10 hover:text-white" href="#offer">מחיר והתקנה</a></li>
+      </ul>
+    </nav>
+    <div class="flex items-center gap-2">
+      <a href="./" class="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-warn-yellow px-4 py-2.5 text-[15px] font-semibold text-storm shadow-sm transition hover:-translate-y-0.5 hover:bg-[#f2c72a] hover:shadow-lg">
+        <span class="sm:hidden">לאפליקציה</span><span class="hidden sm:inline">פתיחת האפליקציה</span>
+      </a>
+      <button type="button" class="rounded-lg p-2.5 text-white transition hover:bg-white/10 md:hidden" aria-label="פתיחת התפריט" aria-expanded="false" aria-controls="mobileNav" data-menu>
+        <i data-lucide="menu" class="h-6 w-6" aria-hidden="true"></i>
+      </button>
+    </div>
+  </div>
+  <nav id="mobileNav" aria-label="ניווט בעמוד" class="hidden border-t border-white/10 bg-storm/95 backdrop-blur md:hidden">
+    <ul class="mx-auto max-w-6xl px-4 py-2 text-lg text-white">
+      <li><a class="block rounded-md px-3 py-3 hover:bg-white/10" href="#features">מה יש בו</a></li>
+      <li><a class="block rounded-md px-3 py-3 hover:bg-white/10" href="#how">איך זה עובד</a></li>
+      <li><a class="block rounded-md px-3 py-3 hover:bg-white/10" href="#uses">למי זה מתאים</a></li>
+      <li><a class="block rounded-md px-3 py-3 hover:bg-white/10" href="#offer">מחיר והתקנה</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main id="main">
+
+<!-- ============ Hero ============ -->
+<section class="relative isolate flex min-h-[100svh] items-end pb-14 pt-28 text-white sm:pb-20" aria-labelledby="heroTitle">
+  <div class="sky" aria-hidden="true">
+    <img class="sky-photo" src="img/hero.jpg" alt="">
+    <div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div>
+    <canvas id="rain"></canvas>
+    <div class="flash"></div>
+  </div>
+
+  <div class="mx-auto grid w-full max-w-6xl items-end gap-10 px-4 sm:px-6 lg:grid-cols-[1.15fr_.85fr]">
+    <div>
+      <p class="mb-5 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-sm text-white/90 ring-1 ring-white/15 backdrop-blur">
+        <span class="live-dot h-2 w-2 rounded-full bg-warn-yellow" aria-hidden="true"></span>
+        נתונים חיים מהשירות המטאורולוגי הישראלי
+      </p>
+      <h1 id="heroTitle" class="text-[clamp(40px,7vw,78px)] font-extrabold leading-[1.02] tracking-tight">
+        מזג האוויר,<br>בשפה של החלטות.
+      </h1>
+      <p class="mt-5 max-w-xl text-lg leading-relaxed text-white/80 sm:text-xl">
+        כותבים שם של מקום, יישוב, בסיס או הר, ומקבלים תוך שנייה תחזית ל-5 ימים, רמת סיכון, התרעות רשמיות וקובץ אקסל מוכן לישיבה.
+      </p>
+      <div class="mt-8 flex flex-wrap gap-3">
+        <a href="./" class="group inline-flex items-center gap-2 rounded-xl bg-warn-yellow px-6 py-4 text-lg font-semibold text-storm shadow-lg shadow-black/20 transition duration-200 hover:-translate-y-0.5 hover:bg-[#f2c72a] hover:shadow-xl">
+          לבדוק את מזג האוויר עכשיו
+          <i data-lucide="arrow-left" class="h-5 w-5 transition-transform duration-200 group-hover:-translate-x-1" aria-hidden="true"></i>
+        </a>
+        <a href="#offer" class="inline-flex items-center gap-2 rounded-xl px-5 py-4 text-lg font-medium text-white ring-1 ring-white/30 transition hover:bg-white/10">
+          <i data-lucide="smartphone" class="h-5 w-5" aria-hidden="true"></i>
+          התקנה בטלפון
+        </a>
+      </div>
+    </div>
+
+    <!-- live card: real IMS numbers from the app's own data file -->
+    <aside class="rounded-2xl bg-white/[.08] p-5 ring-1 ring-white/15 backdrop-blur-md" aria-labelledby="liveTitle">
+      <div class="mb-4 flex items-center justify-between">
+        <h2 id="liveTitle" class="text-base font-semibold">היום בארץ</h2>
+        <span class="text-sm text-white/60" id="liveUpdated">טוען…</span>
+      </div>
+      <ul class="space-y-2.5" id="liveList" aria-live="polite">
+        <li class="h-12 animate-pulse rounded-lg bg-white/10"></li>
+        <li class="h-12 animate-pulse rounded-lg bg-white/10"></li>
+        <li class="h-12 animate-pulse rounded-lg bg-white/10"></li>
+        <li class="h-12 animate-pulse rounded-lg bg-white/10"></li>
+      </ul>
+      <p class="mt-4 text-xs text-white/55">טמפרטורה מקסימלית ומינימלית, וסיכוי לגשם. לחיצה פותחת את התחזית המלאה.</p>
+    </aside>
+  </div>
+</section>
+
+<!-- ============ Numbers ============ -->
+<section class="border-b border-rule bg-white" aria-label="האפליקציה במספרים">
+  <dl class="mx-auto grid max-w-6xl grid-cols-2 gap-px bg-rule sm:grid-cols-4">
+    <div class="bg-white px-6 py-7 text-center"><dt class="text-sm text-ink-soft">תחנות תחזית רשמיות</dt><dd class="num mt-1 text-3xl font-bold" id="statStations">175</dd></div>
+    <div class="bg-white px-6 py-7 text-center"><dt class="text-sm text-ink-soft">ימים קדימה</dt><dd class="num mt-1 text-3xl font-bold">5</dd></div>
+    <div class="bg-white px-6 py-7 text-center"><dt class="text-sm text-ink-soft">בדיקת עדכונים, כל</dt><dd class="num mt-1 text-3xl font-bold">15 דק׳</dd></div>
+    <div class="bg-white px-6 py-7 text-center"><dt class="text-sm text-ink-soft">מקומות בקובץ אחד</dt><dd class="num mt-1 text-3xl font-bold">15</dd></div>
+  </dl>
+</section>
+
+<!-- ============ Features ============ -->
+<section id="features" class="scroll-mt-20 py-20 sm:py-28" aria-labelledby="featTitle">
+  <div class="mx-auto max-w-6xl px-4 sm:px-6">
+    <div class="max-w-2xl">
+      <h2 id="featTitle" class="text-3xl font-bold tracking-tight sm:text-4xl">כל מה שצריך כדי להחליט, במסך אחד</h2>
+      <p class="mt-4 text-lg leading-relaxed text-ink-soft">לא עוד מפת עננים. רונן החזאי מתרגם את נתוני השירות המטאורולוגי לתשובה ברורה: מה צפוי, כמה זה מסוכן ומה עושים עם זה.</p>
+    </div>
+
+    <div class="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <article class="lift reveal rounded-2xl border border-rule bg-white p-6">
+        <span class="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-isobar-soft text-isobar"><i data-lucide="map-pin" class="h-6 w-6" aria-hidden="true"></i></span>
+        <h3 class="mt-5 text-lg font-semibold">כל נקודה בארץ</h3>
+        <p class="mt-2 leading-relaxed text-ink-soft">יישוב, בסיס, הר או חווה. מה שלא מופיע ברשימה נמצא במפה ומקבל את התחנה הרשמית הקרובה, עם המרחק.</p>
+      </article>
+      <article class="lift reveal rounded-2xl border border-rule bg-white p-6">
+        <span class="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[#FDF3D1] text-[#8A6A00]"><i data-lucide="shield-alert" class="h-6 w-6" aria-hidden="true"></i></span>
+        <h3 class="mt-5 text-lg font-semibold">רמת סיכון והתרעות</h3>
+        <p class="mt-2 leading-relaxed text-ink-soft">שורה תחתונה בראש הדף: נמוכה, מוגברת, גבוהה או חמורה. לצידה ההתרעות הרשמיות של האזור והערות בטיחות.</p>
+      </article>
+      <article class="lift reveal rounded-2xl border border-rule bg-white p-6">
+        <span class="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[#E5F2EA] text-ok"><i data-lucide="file-spreadsheet" class="h-6 w-6" aria-hidden="true"></i></span>
+        <h3 class="mt-5 text-lg font-semibold">אקסל בלחיצה</h3>
+        <p class="mt-2 leading-relaxed text-ink-soft">קובץ מסודר לכל מקום, או קובץ אחוד של עד 15 מקומות. חום מעל 30 מסומן באדום, קור מתחת ל-10 בכחול.</p>
+      </article>
+      <article class="lift reveal rounded-2xl border border-rule bg-white p-6">
+        <span class="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[#ECEFF2] text-storm"><i data-lucide="radio-tower" class="h-6 w-6" aria-hidden="true"></i></span>
+        <h3 class="mt-5 text-lg font-semibold">מתעדכן לבד</h3>
+        <p class="mt-2 leading-relaxed text-ink-soft">הנתונים נבדקים מול השירות המטאורולוגי כל 15 דקות, והאפליקציה מתרעננת בעצמה כשהיא פתוחה.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ How it works (a real sequence) ============ -->
+<section id="how" class="scroll-mt-20 bg-storm py-20 text-white sm:py-28" aria-labelledby="howTitle">
+  <div class="mx-auto max-w-6xl px-4 sm:px-6">
+    <h2 id="howTitle" class="max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl">שלושה צעדים, פחות מדקה</h2>
+    <ol class="mt-12 grid gap-8 md:grid-cols-3">
+      <li class="reveal">
+        <span class="num flex h-11 w-11 items-center justify-center rounded-full bg-warn-yellow text-lg font-bold text-storm">1</span>
+        <h3 class="mt-5 text-xl font-semibold">כותבים מקום</h3>
+        <p class="mt-2 leading-relaxed text-white/70">שם של יישוב, בסיס או מספר שהוגדר מראש. אפשר גם ללחוץ על "המיקום שלי".</p>
+      </li>
+      <li class="reveal">
+        <span class="num flex h-11 w-11 items-center justify-center rounded-full bg-warn-yellow text-lg font-bold text-storm">2</span>
+        <h3 class="mt-5 text-xl font-semibold">מקבלים תמונת מצב</h3>
+        <p class="mt-2 leading-relaxed text-white/70">רמת סיכון, סיכום במשפט, גרף ל-5 ימים וטבלה עם גשם, רוח, איכות אוויר וגלים.</p>
+      </li>
+      <li class="reveal">
+        <span class="num flex h-11 w-11 items-center justify-center rounded-full bg-warn-yellow text-lg font-bold text-storm">3</span>
+        <h3 class="mt-5 text-xl font-semibold">משתפים או מייצאים</h3>
+        <p class="mt-2 leading-relaxed text-white/70">קובץ אקסל לטלפון או למחשב, מוכן לשליחה בוואטסאפ או להצגה בישיבה.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ Use cases (example scenarios, not quotes) ============ -->
+<section id="uses" class="scroll-mt-20 py-20 sm:py-28" aria-labelledby="usesTitle">
+  <div class="mx-auto max-w-6xl px-4 sm:px-6">
+    <div class="max-w-2xl">
+      <h2 id="usesTitle" class="text-3xl font-bold tracking-tight sm:text-4xl">איך משתמשים בו ביום-יום</h2>
+      <p class="mt-4 text-lg leading-relaxed text-ink-soft">שלושה תרחישים לדוגמה, מהשטח ועד חדר הישיבות.</p>
+    </div>
+    <div class="mt-12 grid gap-5 md:grid-cols-3">
+      <figure class="lift reveal overflow-hidden rounded-2xl border border-rule bg-white">
+        <img src="img/negev.jpg" alt="ענני סערה מעל הנגב" class="aspect-[16/10] w-full object-cover" loading="lazy">
+        <figcaption class="p-6">
+          <p class="flex items-center gap-2 text-sm font-medium text-isobar"><i data-lucide="sunrise" class="h-4 w-4" aria-hidden="true"></i> תדריך בוקר</p>
+          <h3 class="mt-2 text-lg font-semibold">חמישה בסיסים, קובץ אחד</h3>
+          <p class="mt-2 leading-relaxed text-ink-soft">מוסיפים את המקומות לקובץ האחוד, ובשבע בבוקר יש טבלה אחת עם רמת סיכון לכל מקום, מוכנה להקרנה.</p>
+        </figcaption>
+      </figure>
+      <figure class="lift reveal overflow-hidden rounded-2xl border border-rule bg-white">
+        <img src="img/shelf.jpg" alt="ענן מדף מתקרב לעיר" class="aspect-[16/10] w-full object-cover" loading="lazy">
+        <figcaption class="p-6">
+          <p class="flex items-center gap-2 text-sm font-medium text-isobar"><i data-lucide="calendar-check" class="h-4 w-4" aria-hidden="true"></i> אירוע בחוץ</p>
+          <h3 class="mt-2 text-lg font-semibold">יודעים מתי לפתוח אוהל</h3>
+          <p class="mt-2 leading-relaxed text-ink-soft">שעות הגשם הצפויות ומשבי הרוח מופיעים לכל יום, כך שאפשר להזיז את האירוע בזמן ולא ברגע האחרון.</p>
+        </figcaption>
+      </figure>
+      <figure class="lift reveal overflow-hidden rounded-2xl border border-rule bg-white">
+        <img src="img/lightning.jpg" alt="ברקים מעל הים" class="aspect-[16/10] w-full object-cover" loading="lazy">
+        <figcaption class="p-6">
+          <p class="flex items-center gap-2 text-sm font-medium text-isobar"><i data-lucide="mountain" class="h-4 w-4" aria-hidden="true"></i> טיול ושטח</p>
+          <h3 class="mt-2 text-lg font-semibold">אזהרת שיטפון לפני היציאה</h3>
+          <p class="mt-2 leading-relaxed text-ink-soft">התרעות השירות המטאורולוגי על שטפונות, סופות ועומס חום מופיעות לפי האזור, עם הנחיה מה לעשות.</p>
+        </figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Offer ============ -->
+<section id="offer" class="scroll-mt-20 border-t border-rule bg-white py-20 sm:py-28" aria-labelledby="offerTitle">
+  <div class="mx-auto grid max-w-6xl items-start gap-10 px-4 sm:px-6 lg:grid-cols-2">
+    <div class="reveal rounded-3xl bg-storm p-8 text-white sm:p-10">
+      <h2 id="offerTitle" class="text-lg font-medium text-white/70">המחיר</h2>
+      <p class="mt-2 flex items-baseline gap-3"><span class="text-6xl font-extrabold">חינם</span><span class="text-white/60">לכולם, בלי הרשמה</span></p>
+      <ul class="mt-8 space-y-3 text-[17px]">
+        <li class="flex gap-3"><i data-lucide="check" class="mt-0.5 h-5 w-5 flex-none text-warn-yellow" aria-hidden="true"></i>תחזית ל-5 ימים לכל מקום בארץ</li>
+        <li class="flex gap-3"><i data-lucide="check" class="mt-0.5 h-5 w-5 flex-none text-warn-yellow" aria-hidden="true"></i>רמת סיכון, התרעות רשמיות והערות בטיחות</li>
+        <li class="flex gap-3"><i data-lucide="check" class="mt-0.5 h-5 w-5 flex-none text-warn-yellow" aria-hidden="true"></i>גרף, טבלה ואיכות אוויר</li>
+        <li class="flex gap-3"><i data-lucide="check" class="mt-0.5 h-5 w-5 flex-none text-warn-yellow" aria-hidden="true"></i>קבצי אקסל, כולל קובץ אחוד של 15 מקומות</li>
+        <li class="flex gap-3"><i data-lucide="check" class="mt-0.5 h-5 w-5 flex-none text-warn-yellow" aria-hidden="true"></i>בלי פרסומות ובלי איסוף מידע אישי</li>
+      </ul>
+      <a href="./" class="mt-10 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-warn-yellow px-6 py-4 text-lg font-semibold text-storm transition duration-200 hover:-translate-y-0.5 hover:bg-[#f2c72a] hover:shadow-xl sm:w-auto">
+        פתיחת רונן החזאי
+        <i data-lucide="arrow-left" class="h-5 w-5" aria-hidden="true"></i>
+      </a>
+    </div>
+
+    <div class="reveal">
+      <h2 class="text-3xl font-bold tracking-tight">מתקינים כמו אפליקציה, בלי חנות</h2>
+      <p class="mt-3 text-lg leading-relaxed text-ink-soft">פעם אחת, וזה נפתח מהאייקון במסך הבית, במסך מלא.</p>
+      <div class="mt-8 space-y-4">
+        <div class="lift rounded-2xl border border-rule p-6">
+          <h3 class="flex items-center gap-2 text-lg font-semibold"><i data-lucide="apple" class="h-5 w-5" aria-hidden="true"></i>אייפון</h3>
+          <ol class="mt-3 list-inside list-decimal space-y-1.5 leading-relaxed text-ink-soft">
+            <li>פותחים את <a href="./" class="font-medium text-isobar underline underline-offset-4">האפליקציה</a> ב-Safari</li>
+            <li>לוחצים על כפתור השיתוף <i data-lucide="share" class="inline h-4 w-4 align-[-2px]" aria-label="ריבוע עם חץ למעלה"></i></li>
+            <li>בוחרים "הוספה למסך הבית"</li>
+          </ol>
+        </div>
+        <div class="lift rounded-2xl border border-rule p-6">
+          <h3 class="flex items-center gap-2 text-lg font-semibold"><i data-lucide="smartphone" class="h-5 w-5" aria-hidden="true"></i>אנדרואיד</h3>
+          <ol class="mt-3 list-inside list-decimal space-y-1.5 leading-relaxed text-ink-soft">
+            <li>פותחים את <a href="./" class="font-medium text-isobar underline underline-offset-4">האפליקציה</a> ב-Chrome</li>
+            <li>לוחצים על <i data-lucide="more-vertical" class="inline h-4 w-4 align-[-2px]" aria-label="שלוש נקודות"></i> בפינה</li>
+            <li>בוחרים "התקנת אפליקציה"</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ============ Footer ============ -->
+<footer class="bg-storm text-white/70">
+  <div class="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-12 sm:px-6 md:flex-row md:items-start md:justify-between">
+    <div class="max-w-md">
+      <p class="font-brand text-2xl text-white">רונן החזאי</p>
+      <p class="mt-3 text-sm leading-relaxed">מקור הנתונים: השירות המטאורולוגי הישראלי. בכל מצב חירום יש לפעול לפי הנחיות פיקוד העורף והרשויות.</p>
+    </div>
+    <nav aria-label="קישורים">
+      <ul class="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+        <li><a class="transition hover:text-white" href="./">האפליקציה</a></li>
+        <li><a class="transition hover:text-white" href="#offer">התקנה בטלפון</a></li>
+        <li><a class="transition hover:text-white" href="https://ims.gov.il" target="_blank" rel="noopener">השירות המטאורולוגי</a></li>
+        <li><a class="transition hover:text-white" href="https://www.oref.org.il" target="_blank" rel="noopener">פיקוד העורף</a></li>
+      </ul>
+    </nav>
+  </div>
+  <div class="border-t border-white/10">
+    <p class="mx-auto max-w-6xl px-4 py-5 text-xs text-white/50 sm:px-6">© 2026 רונן החזאי · צילומים: NOAA NSSL, דוידי ורדי (PikiWiki), bigwavephoto, Erik dos Santos, דרך Wikimedia Commons</p>
+  </div>
+</footer>
+
+<script>
+(() => {
+  "use strict";
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // header turns solid after the hero
+  const header = document.querySelector("[data-header]");
+  const onScroll = () => {
+    header.classList.toggle("bg-storm/95", scrollY > 40);
+    header.classList.toggle("backdrop-blur", scrollY > 40);
+  };
+  addEventListener("scroll", onScroll, { passive: true }); onScroll();
+
+  // mobile menu
+  const menuBtn = document.querySelector("[data-menu]"), mobileNav = document.getElementById("mobileNav");
+  menuBtn.addEventListener("click", () => {
+    const open = mobileNav.classList.toggle("hidden") === false;
+    menuBtn.setAttribute("aria-expanded", open);
+    menuBtn.setAttribute("aria-label", open ? "סגירת התפריט" : "פתיחת התפריט");
+  });
+  mobileNav.addEventListener("click", (e) => { if (e.target.closest("a")) { mobileNav.classList.add("hidden"); menuBtn.setAttribute("aria-expanded", "false"); } });
+
+  // reveal on scroll
+  const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: .15 });
+  document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+
+  // rain: thin slanted streaks, density follows the screen size
+  const cv = document.getElementById("rain"), ctx = cv.getContext("2d");
+  let drops = [], W = 0, H = 0;
+  const size = () => {
+    const r = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+    W = r.width; H = r.height; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drops = Array.from({ length: Math.round(W * H / 9000) }, () => ({ x: Math.random() * W, y: Math.random() * H, l: 10 + Math.random() * 16, v: 9 + Math.random() * 9, a: .12 + Math.random() * .22 }));
+  };
+  const frame = () => {
+    ctx.clearRect(0, 0, W, H);
+    ctx.lineWidth = 1; ctx.lineCap = "round";
+    for (const d of drops) {
+      ctx.strokeStyle = `rgba(200,215,230,${d.a})`;
+      ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(d.x - d.l * .25, d.y + d.l); ctx.stroke();
+      d.y += d.v; d.x -= d.v * .25;
+      if (d.y > H) { d.y = -20; d.x = Math.random() * (W + 100); }
+    }
+    if (!document.hidden) requestAnimationFrame(frame);
+  };
+  if (!reduce) {
+    size(); addEventListener("resize", size); requestAnimationFrame(frame);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) requestAnimationFrame(frame); });
+  }
+
+  // live card from the app's own IMS data file
+  const CITIES = ["תל אביב-יפו", "ירושלים", "חיפה", "באר שבע", "אילת"];
+  const ICON = (c) => ({ 1250: "sun", 1310: "sun", 1580: "sun", 1270: "sun", 1220: "cloud-sun", 1530: "cloud-sun-rain",
+    1230: "cloud", 1540: "cloud-drizzle", 1560: "cloud-drizzle", 1140: "cloud-rain", 1020: "cloud-lightning", 1510: "cloud-lightning",
+    1260: "wind", 1570: "haze", 1010: "haze", 1160: "cloud-fog", 1320: "snowflake", 1590: "snowflake", 1300: "snowflake",
+    1080: "cloud-snow", 1070: "cloud-snow", 1060: "cloud-snow", 1520: "cloud-snow" }[c] || "cloud");
+  const esc = (t) => String(t).replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
+  fetch("data/forecast.json", { cache: "no-cache" }).then((r) => r.json()).then((db) => {
+    const locs = Object.values(db.locations);
+    document.getElementById("statStations").textContent = locs.length;
+    const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Jerusalem" });
+    const rows = CITIES.map((n) => locs.find((l) => l.n === n)).filter(Boolean).map((l) => {
+      const key = l.d[today] ? today : Object.keys(l.d).sort()[0];
+      return { n: l.n, d: l.d[key] };
+    });
+    document.getElementById("liveList").innerHTML = rows.map(({ n, d }) => {
+      const rc = Math.round(d.rc || 0);
+      return `<li><a href="./#${encodeURIComponent(n)}" class="flex items-center gap-3 rounded-lg px-3 py-2.5 transition hover:bg-white/10">
+        <i data-lucide="${ICON(d.c)}" class="h-6 w-6 flex-none text-white/85" aria-hidden="true"></i>
+        <span class="min-w-0 flex-1"><span class="block font-medium">${esc(n)}</span><span class="block text-sm text-white/60">${esc(db.codes[d.c] || "")}</span></span>
+        <span class="num text-left"><span class="block font-semibold">${Math.round(d.mx)}° <span class="font-normal text-white/55">/ ${Math.round(d.mn)}°</span></span>
+          <span class="mt-1 flex items-center gap-1.5 text-xs text-white/60"><span class="h-1.5 w-12 overflow-hidden rounded-full bg-white/15"><span class="rain-fill block h-full rounded-full bg-sky-300" style="width:0" data-w="${rc}%"></span></span>${rc}%</span></span>
+      </a></li>`;
+    }).join("");
+    const [, t] = db.updated.split(" ");
+    document.getElementById("liveUpdated").textContent = "עודכן ב-" + t;
+    if (window.lucide) lucide.createIcons();
+    requestAnimationFrame(() => document.querySelectorAll(".rain-fill").forEach((el) => { el.style.width = el.dataset.w; }));
+  }).catch(() => {
+    document.getElementById("liveList").innerHTML = '<li class="text-white/70">הנתונים יופיעו כשיהיה חיבור לאינטרנט.</li>';
+    document.getElementById("liveUpdated").textContent = "";
+  });
+
+  addEventListener("DOMContentLoaded", () => window.lucide && lucide.createIcons());
+  if (window.lucide) lucide.createIcons();
+})();
+</script>
+</body>
+</html>
