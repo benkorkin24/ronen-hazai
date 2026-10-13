@@ -146,6 +146,12 @@ function matchLocal(q) {
 const IL_BOX = { w: 34.2, s: 29.4, e: 35.95, n: 33.4 };
 const inIsrael = (p) => p.lat >= IL_BOX.s && p.lat <= IL_BOX.n && p.lon >= IL_BOX.w && p.lon <= IL_BOX.e;
 
+/* ---------- numbered places (codes.js) ---------- */
+function matchCode(q) {
+  const k = (q || "").trim();
+  return /^\d{3}$/.test(k) && CODES[k] ? { name: k, lat: CODES[k].lat, lon: CODES[k].lon, code: true } : null;
+}
+
 /* ---------- IDF bases (bases.js) ---------- */
 const BASE_PREFIX = /^(בסיס חיל האוויר|בסיס חיל האויר|בסיס|מחנה|בחא)\s+/;
 const baseKey = (s) => norm((s || "").replace(/["'״׳`]/g, ""));
@@ -416,8 +422,9 @@ function show(loc, via, quiet) {
   const days = Object.entries(loc.d).sort(([a], [b]) => a.localeCompare(b)).slice(0, DAYS);
   current = { loc, days, alerts: officialAlerts(loc), notes: derivedNotes(days), via };
 
-  $("place").textContent = loc.n;
-  const viaTxt = via ? `תחזית לתחנה הקרובה ל${via.name} (${fmt(via.dist)} ק״מ). ` : "";
+  $("place").textContent = via && via.code ? via.name : loc.n;
+  const viaTxt = !via ? "" : via.code ? `תחזית מתחנת ${loc.n} (${fmt(via.dist)} ק״מ). `
+    : `תחזית לתחנה הקרובה ל${via.name} (${fmt(via.dist)} ק״מ). `;
   $("meta").textContent = `${viaTxt}עודכן ב-${updatedText()}, לפי השירות המטאורולוגי הישראלי`;
 
   // alerts
@@ -492,8 +499,8 @@ function show(loc, via, quiet) {
   if (!quiet) { rep.classList.remove("enter"); void rep.offsetWidth; rep.classList.add("enter"); }
   renderChart(days);   // after the report is visible, so the chart can measure its width
   setStatus("");
-  try { localStorage.setItem("ronen-last", loc.id); } catch (e) {}
-  history.replaceState(null, "", "#" + encodeURIComponent(loc.n));
+  try { localStorage.setItem("ronen-last", via && via.code ? "#" + via.name : loc.id); } catch (e) {}
+  history.replaceState(null, "", "#" + encodeURIComponent(via && via.code ? via.name : loc.n));
 }
 
 /* ---------- search ---------- */
@@ -504,6 +511,9 @@ async function search(q) {
   $("alts").innerHTML = "";
   if (!q) { setStatus("הקלידו שם של יישוב או מקום.", true); return; }
   closeSuggest();
+  const code = matchCode(q);
+  if (code) { showPlace(code); return; }
+  if (/^\d+$/.test(q)) { $("report").hidden = true; setStatus(`המספר ${q} לא מוגדר. המספרים הקיימים: ${Object.keys(CODES).join(", ")}.`, true); return; }
   const base = matchBase(q);
   if (base) { showPlace({ name: base.label, lat: base.lat, lon: base.lon }); return; }
   const local = matchLocal(q);
@@ -531,7 +541,7 @@ async function search(q) {
 function showPlace(g) {
   const { loc, dist } = nearest(g);
   if (dist > 60) { $("report").hidden = true; setStatus(`"${g.name}" נמצא מחוץ לאזור התחזית של השירות המטאורולוגי הישראלי.`, true); return; }
-  show(loc, { name: g.name, dist });
+  show(loc, { name: g.name, dist, code: !!g.code });
   scrollToReport();
 }
 
@@ -558,7 +568,8 @@ let sugIdx = -1;
 function renderSuggest() {
   const q = $("q").value;
   const list = $("suggest");
-  const items = [...suggestBases(q).map((b) => ({ n: b.label })), ...matchLocal(q)].slice(0, 8);
+  const digits = /^\d{1,3}$/.test(q.trim()) ? Object.keys(CODES).filter((c) => c.startsWith(q.trim())).map((c) => ({ n: c })) : [];
+  const items = [...digits, ...suggestBases(q).map((b) => ({ n: b.label })), ...matchLocal(q)].slice(0, 8);
   sugIdx = -1;
   list.innerHTML = "";
   if (!items.length || norm(q) === (items[0] && items[0].key) && items.length === 1) { closeSuggest(); return; }
@@ -586,6 +597,26 @@ function moveSuggest(dir) {
 }
 
 /* ---------- excel ---------- */
+// temperature cells: above 30° red, below 10° blue; header row bold
+const HOT = { fill: { patternType: "solid", fgColor: { rgb: "E53935" } }, font: { bold: true, color: { rgb: "FFFFFF" } } };
+const COLD = { fill: { patternType: "solid", fgColor: { rgb: "1E63C8" } }, font: { bold: true, color: { rgb: "FFFFFF" } } };
+const HEAD = { fill: { patternType: "solid", fgColor: { rgb: "E4ECF2" } }, font: { bold: true }, alignment: { wrapText: true, vertical: "center" } };
+function styleSheet(ws, headRow, tempCols) {
+  const range = XLSX.utils.decode_range(ws["!ref"]);
+  for (let c = range.s.c; c <= range.e.c; c++) {
+    const h = ws[XLSX.utils.encode_cell({ r: headRow, c })];
+    if (h) h.s = HEAD;
+  }
+  ws[XLSX.utils.encode_cell({ r: 0, c: 0 })].s = { font: { bold: true, sz: 14 } };
+  for (let r = headRow + 1; r <= range.e.r; r++) {
+    for (const c of tempCols) {
+      const cell = ws[XLSX.utils.encode_cell({ r, c })];
+      if (!cell || typeof cell.v !== "number") continue;
+      if (cell.v > 30) cell.s = HOT;
+      else if (cell.v < 10) cell.s = COLD;
+    }
+  }
+}
 const DAY_HEAD = ["תאריך", "יום", "מצב", "טמפ׳ מקסימלית (°C)", "טמפ׳ מינימלית (°C)", "טמפ׳ מורגשת מקסימלית (°C)",
   "סיכוי לגשם (%)", "כמות גשם (מ״מ)", "שעות גשם צפויות", "רוח (קמ״ש)", "משבים (קמ״ש)", "כיוון רוח",
   "UV", "איכות אוויר", "PM10 (מק״ג/מ״ק)", "גובה גלים (מ׳)", "לחות ממוצעת (%)", "זריחה", "שקיעה"];
@@ -632,7 +663,7 @@ function exportExcel() {
   const risk = RISK[riskLevel(alerts, days)];
   const rows = [
     [title],
-    ["מקום", via ? `${via.name} (תחזית מתחנת ${loc.n}, ${fmt(via.dist)} ק״מ)` : loc.n],
+    ["מקום", via && via.code ? via.name : via ? `${via.name} (תחזית מתחנת ${loc.n}, ${fmt(via.dist)} ק״מ)` : loc.n],
     ["רמת סיכון", risk.label],
     ["תמונת מצב", briefSummary(days) + " " + risk.text],
     ["עדכון אחרון של הנתונים", DB.updated],
@@ -652,6 +683,7 @@ function exportExcel() {
   ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }, { s: { r: 3, c: 1 }, e: { r: 3, c: 12 } }];
   const wb = XLSX.utils.book_new();
   wb.Workbook = { Views: [{ RTL: true }] };
+  styleSheet(ws, 7, [3, 4, 5]);
   XLSX.utils.book_append_sheet(wb, ws, "תחזית");
   saveWorkbook(wb, title);
 }
@@ -662,6 +694,9 @@ let multi = [];   // [{query, label, loc, via}]
 
 // Same order as the main search: IDF base → IMS location → map search (first hit).
 async function resolvePlace(q) {
+  const code = matchCode(q);
+  if (code) return fromPoint(code);
+  if (/^\d+$/.test(q.trim())) throw new Error(`המספר ${q.trim()} לא מוגדר.`);
   const base = matchBase(q);
   if (base) return fromPoint({ name: base.label, lat: base.lat, lon: base.lon });
   const local = matchLocal(q);
@@ -673,7 +708,7 @@ async function resolvePlace(q) {
 function fromPoint(g) {
   const { loc, dist } = nearest(g);
   if (dist > 60) throw new Error(`"${g.name}" נמצא מחוץ לאזור התחזית של השירות המטאורולוגי הישראלי.`);
-  return { label: g.name, loc, via: dist > 1 ? { name: g.name, dist } : null };
+  return { label: g.name, loc, via: dist > 1 || g.code ? { name: g.name, dist, code: !!g.code } : null };
 }
 
 function multiMsg(text, isErr) {
@@ -781,6 +816,7 @@ function exportMulti() {
 
   const wb = XLSX.utils.book_new();
   wb.Workbook = { Views: [{ RTL: true }] };
+  styleSheet(ws, 5, [7, 8, 9]);
   XLSX.utils.book_append_sheet(wb, ws, "תחזית אחודה");
   XLSX.utils.book_append_sheet(wb, ws2, "התרעות ובטיחות");
   const count = multi.length === 1 ? "מקום אחד" : `${multi.length} מקומות`;
@@ -835,8 +871,10 @@ async function boot() {
   const fromHash = decodeURIComponent(location.hash.slice(1));
   let last = null;
   try { last = localStorage.getItem("ronen-last"); } catch (e) {}
-  const start = (fromHash && matchLocal(fromHash)[0]) || (last && LOCS.find((l) => l.id === last));
-  if (start) { q.value = start.n; show(start); }
+  const startCode = matchCode(fromHash) || (!fromHash && last && last[0] === "#" && matchCode(last.slice(1)));
+  const start = !startCode && ((fromHash && matchLocal(fromHash)[0]) || (last && LOCS.find((l) => l.id === last)));
+  if (startCode) { q.value = startCode.name; const { loc, dist } = nearest(startCode); show(loc, { name: startCode.name, dist, code: true }); }
+  else if (start) { q.value = start.n; show(start); }
 
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 
