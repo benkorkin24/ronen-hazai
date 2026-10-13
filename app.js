@@ -597,7 +597,7 @@ function moveSuggest(dir) {
 }
 
 /* ---------- excel ---------- */
-// temperature cells: above 30° red, below 10° blue; header row bold
+// temperature cells: above 30° red, below 15° blue; header row bold
 const HOT = { fill: { patternType: "solid", fgColor: { rgb: "E53935" } }, font: { bold: true, color: { rgb: "FFFFFF" } } };
 const COLD = { fill: { patternType: "solid", fgColor: { rgb: "1E63C8" } }, font: { bold: true, color: { rgb: "FFFFFF" } } };
 const HEAD = { fill: { patternType: "solid", fgColor: { rgb: "E4ECF2" } }, font: { bold: true }, alignment: { wrapText: true, vertical: "center" } };
@@ -607,16 +607,39 @@ function styleSheet(ws, headRow, tempCols) {
     const h = ws[XLSX.utils.encode_cell({ r: headRow, c })];
     if (h) h.s = HEAD;
   }
-  ws[XLSX.utils.encode_cell({ r: 0, c: 0 })].s = { font: { bold: true, sz: 14 } };
+  if (headRow > 0) ws[XLSX.utils.encode_cell({ r: 0, c: 0 })].s = { font: { bold: true, sz: 14 } };
   for (let r = headRow + 1; r <= range.e.r; r++) {
     for (const c of tempCols) {
       const cell = ws[XLSX.utils.encode_cell({ r, c })];
       if (!cell || typeof cell.v !== "number") continue;
       if (cell.v > 30) cell.s = HOT;
-      else if (cell.v < 10) cell.s = COLD;
+      else if (cell.v < 15) cell.s = COLD;
     }
   }
 }
+const ACTION = { font: { bold: true, color: { rgb: "C0281F" } } };
+
+// legend rows, placed under the file header
+const LEGEND = [["מקרא צבעים"], ["אדום", "טמפרטורה מעל 30°C"], ["כחול", "טמפרטורה מתחת ל-15°C"],
+  ["פעולה נדרשת", "מופיע ליד כל עומס חום או התרעת גשם: נדרש לבצע הערכת מצב מפקד"]];
+function styleLegend(ws, firstRow) {
+  ws[XLSX.utils.encode_cell({ r: firstRow, c: 0 })].s = { font: { bold: true } };
+  ws[XLSX.utils.encode_cell({ r: firstRow + 1, c: 0 })].s = HOT;
+  ws[XLSX.utils.encode_cell({ r: firstRow + 2, c: 0 })].s = COLD;
+  ws[XLSX.utils.encode_cell({ r: firstRow + 3, c: 0 })].s = ACTION;
+}
+
+// heat stress or any rain / flood warning → the commander must run a situation assessment
+const COMMANDER = "נדרש לבצע הערכת מצב מפקד";
+const needsCommander = (text) => /עומס חום|גש[םמ]|שטפונ/.test(text || "");
+function styleActions(ws, col) {
+  const range = XLSX.utils.decode_range(ws["!ref"]);
+  for (let r = 0; r <= range.e.r; r++) {
+    const cell = ws[XLSX.utils.encode_cell({ r, c: col })];
+    if (cell && cell.v === COMMANDER) cell.s = ACTION;
+  }
+}
+
 const DAY_HEAD = ["תאריך", "יום", "מצב", "טמפ׳ מקסימלית (°C)", "טמפ׳ מינימלית (°C)", "טמפ׳ מורגשת מקסימלית (°C)",
   "סיכוי לגשם (%)", "כמות גשם (מ״מ)", "שעות גשם צפויות", "רוח (קמ״ש)", "משבים (קמ״ש)", "כיוון רוח",
   "UV", "איכות אוויר", "PM10 (מק״ג/מ״ק)", "גובה גלים (מ׳)", "לחות ממוצעת (%)", "זריחה", "שקיעה"];
@@ -633,9 +656,12 @@ const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.s
 // Android and computers: a regular download into the Downloads folder.
 // iPhone/iPad: Safari, and especially an app added to the home screen, ignore download links,
 // so the file goes to the iOS sheet where "Save to Files" stores it on the phone.
-async function saveWorkbook(wb, title) {
+async function saveWorkbook(wb, title, chart) {
   const name = title + ".xlsx";
-  const data = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  let data = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  if (chart && window.fflate) {
+    try { data = injectCharts(data, chart); } catch (e) { console.warn("chart skipped", e); }
+  }
   const file = new File([data], name, { type: XLSX_MIME });
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   if (ios && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -669,23 +695,140 @@ function exportExcel() {
     ["עדכון אחרון של הנתונים", DB.updated],
     ["מקור", DB.source],
     [],
+    ...LEGEND,
+    [],
     DAY_HEAD,
     ...days.map(([iso, d]) => dayRow(loc, iso, d)),
     [],
-    ["התרעות רשמיות"],
-    ...(alerts.length ? alerts.map((a) => [a.kind, a.text]) : [["", "אין התרעות רשמיות לאזור זה"]]),
+    ["התרעות רשמיות", "", "פעולה נדרשת"],
+    ...(alerts.length ? alerts.map((a) => [a.kind, a.text, needsCommander(a.text) ? COMMANDER : ""]) : [["", "אין התרעות רשמיות לאזור זה"]]),
   ];
   if (notes.length) {
-    rows.push([], ["הערות בטיחות לפי נתוני התחזית"], ...notes.map((n) => [n.day, n.text]));
+    rows.push([], ["הערות בטיחות לפי נתוני התחזית", "", "פעולה נדרשת"],
+      ...notes.map((n) => [n.day, n.text, needsCommander(n.text) ? COMMANDER : ""]));
   }
+  const headRow = rows.indexOf(DAY_HEAD), legendRow = rows.indexOf(LEGEND[0]);
   const ws = XLSX.utils.aoa_to_sheet(rows);
   ws["!cols"] = DAY_COLS.map((w, i) => ({ wch: i === 0 ? 22 : w }));
   ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }, { s: { r: 3, c: 1 }, e: { r: 3, c: 12 } }];
+  ws["!cols"][2] = { wch: 26 };
   const wb = XLSX.utils.book_new();
   wb.Workbook = { Views: [{ RTL: true }] };
-  styleSheet(ws, 7, [3, 4, 5]);
+  styleSheet(ws, headRow, [3, 4, 5]);
+  styleLegend(ws, legendRow);
+  styleActions(ws, 2);
   XLSX.utils.book_append_sheet(wb, ws, "תחזית");
-  saveWorkbook(wb, title);
+  const chart = addChartSheet(wb, [{ label: via && via.code ? via.name : loc.n, days }]);
+  saveWorkbook(wb, title, chart);
+}
+
+/* ---------- chart sheet: native Excel charts, like the chart on the app's home page ---------- */
+// Temperature every 3 hours (one line per place) above the daily chance of rain (one column per place).
+const CHART_SHEET = "גרף מתכלל";
+const SERIES_COLORS = ["24557A", "E07A10", "2E7D4F", "C0281F", "7B4FA0", "1B9AAA", "8C6D1F", "D6457A",
+  "5C6B78", "3A7D2C", "8C564B", "1F77B4", "B8860B", "17A2B8", "9467BD"];
+
+function addChartSheet(wb, areas) {
+  if (!areas.length) return null;
+  const base = areas[0].days;
+  const slots = [];
+  base.forEach(([iso, d]) => (d.s || []).forEach(([h]) => slots.push({ iso, h })));
+  const short = (iso) => { const n = dayName(iso); return n.startsWith("יום ") ? n.slice(4) : n; };
+  const tempOf = (a, iso, h) => { const d = (a.days.find(([i]) => i === iso) || [])[1]; const p = d && (d.s || []).find((x) => x[0] === h); return p && p[1] != null ? Math.round(p[1] * 10) / 10 : null; };
+
+  const DATA_ROW = 40;                                   // charts sit above the data
+  const rows = [[`${fileTitle()}: גרף מתכלל`]];
+  while (rows.length < DATA_ROW) rows.push([]);
+  rows.push(["טמפרטורה (°C)", ...areas.map((a) => a.label)]);
+  const tFirst = rows.length;
+  for (const { iso, h } of slots) rows.push([`${short(iso)} ${hh(h)}`, ...areas.map((a) => tempOf(a, iso, h))]);
+  const tLast = rows.length - 1;
+  rows.push([]);
+  rows.push(["סיכוי לגשם (%)", ...areas.map((a) => a.label)]);
+  const rHead = rows.length - 1, rFirst = rows.length;
+  for (const [iso] of base) rows.push([`${dayName(iso)} ${shortDate(iso)}`, ...areas.map((a) => { const d = (a.days.find(([i]) => i === iso) || [])[1]; return d && d.rc != null ? Math.round(d.rc) : null; })]);
+  const rLast = rows.length - 1;
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws["!cols"] = [{ wch: 18 }, ...areas.map(() => ({ wch: 12 }))];
+  ws["A1"].s = { font: { bold: true, sz: 14 } };
+  [DATA_ROW, rHead].forEach((r) => { for (let c = 0; c <= areas.length; c++) { const cell = ws[XLSX.utils.encode_cell({ r, c })]; if (cell) cell.s = HEAD; } });
+  XLSX.utils.book_append_sheet(wb, ws, CHART_SHEET);
+
+  const ref = (c, r1, r2) => `'${CHART_SHEET}'!$${XLSX.utils.encode_col(c)}$${r1 + 1}` + (r2 != null ? `:$${XLSX.utils.encode_col(c)}$${r2 + 1}` : "");
+  const col = (c, r1, r2) => rows.slice(r1, r2 + 1).map((r) => r[c]);
+  const series = (r1, r2) => areas.map((a, i) => ({ name: a.label, nameRef: ref(i + 1, r1 - 1), ref: ref(i + 1, r1, r2), vals: col(i + 1, r1, r2), color: SERIES_COLORS[i % SERIES_COLORS.length] }));
+  return {
+    sheetIndex: wb.SheetNames.length,
+    charts: [
+      { type: "line", title: "טמפרטורה לאורך 5 הימים, כל 3 שעות (°C)", catRef: ref(0, tFirst, tLast), cats: col(0, tFirst, tLast), series: series(tFirst, tLast), skip: 4, from: [0, 1], to: [16, 21] },
+      { type: "bar", title: "סיכוי לגשם לפי יום (%)", catRef: ref(0, rFirst, rLast), cats: col(0, rFirst, rLast), series: series(rFirst, rLast), min: 0, max: 100, from: [0, 21], to: [16, 38] },
+    ],
+  };
+}
+
+const xmlEsc = (t) => String(t).replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[m]));
+function chartXml(ch) {
+  const txt = (t, sz, b) => `<c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="${sz}" b="${b ? 1 : 0}"/></a:pPr><a:r><a:rPr lang="he-IL" sz="${sz}" b="${b ? 1 : 0}"/><a:t>${xmlEsc(t)}</a:t></a:r></a:p></c:rich></c:tx>`;
+  const strCache = (vals) => `<c:strCache><c:ptCount val="${vals.length}"/>${vals.map((v, i) => `<c:pt idx="${i}"><c:v>${xmlEsc(v ?? "")}</c:v></c:pt>`).join("")}</c:strCache>`;
+  const numCache = (vals) => `<c:numCache><c:formatCode>General</c:formatCode><c:ptCount val="${vals.length}"/>${vals.map((v, i) => (v == null ? "" : `<c:pt idx="${i}"><c:v>${v}</c:v></c:pt>`)).join("")}</c:numCache>`;
+  const fill = (c) => `<a:solidFill><a:srgbClr val="${c}"/></a:solidFill>`;
+  const sers = ch.series.map((s, i) => `<c:ser><c:idx val="${i}"/><c:order val="${i}"/>
+    <c:tx><c:strRef><c:f>${xmlEsc(s.nameRef)}</c:f>${strCache([s.name])}</c:strRef></c:tx>
+    ${ch.type === "line"
+      ? `<c:spPr><a:ln w="22225" cap="rnd">${fill(s.color)}<a:round/></a:ln></c:spPr><c:marker><c:symbol val="none"/></c:marker>`
+      : `<c:spPr>${fill(s.color)}</c:spPr><c:invertIfNegative val="0"/>`}
+    <c:cat><c:strRef><c:f>${xmlEsc(ch.catRef)}</c:f>${strCache(ch.cats)}</c:strRef></c:cat>
+    <c:val><c:numRef><c:f>${xmlEsc(s.ref)}</c:f>${numCache(s.vals)}</c:numRef></c:val>
+    ${ch.type === "line" ? '<c:smooth val="0"/>' : ""}</c:ser>`).join("");
+  const plot = ch.type === "line"
+    ? `<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>${sers}<c:marker val="1"/><c:axId val="5001"/><c:axId val="5002"/></c:lineChart>`
+    : `<c:barChart><c:barDir val="col"/><c:grouping val="clustered"/><c:varyColors val="0"/>${sers}<c:gapWidth val="60"/><c:axId val="5001"/><c:axId val="5002"/></c:barChart>`;
+  const grid = `<c:majorGridlines><c:spPr><a:ln w="6350">${fill("E3E8EC")}</a:ln></c:spPr></c:majorGridlines>`;
+  const axTxt = `<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="900">${fill("55616C")}</a:defRPr></a:pPr><a:endParaRPr lang="he-IL"/></a:p></c:txPr>`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<c:roundedCorners val="0"/>
+<c:chart><c:title>${txt(ch.title, 1300, true)}<c:overlay val="0"/></c:title><c:autoTitleDeleted val="0"/>
+<c:plotArea><c:layout/>${plot}
+<c:catAx><c:axId val="5001"/><c:scaling><c:orientation val="maxMin"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:numFmt formatCode="General" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="low"/><c:spPr><a:ln w="6350">${fill("D5DBE0")}</a:ln></c:spPr>${axTxt}<c:crossAx val="5002"/><c:crosses val="autoZero"/><c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/>${ch.skip ? `<c:tickLblSkip val="${ch.skip}"/><c:tickMarkSkip val="${ch.skip}"/>` : ""}<c:noMultiLvlLbl val="0"/></c:catAx>
+<c:valAx><c:axId val="5002"/><c:scaling><c:orientation val="minMax"/>${ch.max != null ? `<c:max val="${ch.max}"/>` : ""}${ch.min != null ? `<c:min val="${ch.min}"/>` : ""}</c:scaling><c:delete val="0"/><c:axPos val="r"/>${grid}<c:numFmt formatCode="General" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:spPr><a:ln><a:noFill/></a:ln></c:spPr>${axTxt}<c:crossAx val="5001"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>
+</c:plotArea>
+<c:legend><c:legendPos val="b"/><c:overlay val="0"/>${axTxt.replace('sz="900"', 'sz="1000"')}</c:legend><c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart>
+<c:spPr><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:ln><a:noFill/></a:ln></c:spPr>
+</c:chartSpace>`;
+}
+
+// add the charts to the workbook SheetJS produced: drawing + chart parts, rels and content types
+function injectCharts(data, spec) {
+  const { unzipSync, zipSync, strFromU8, strToU8 } = window.fflate;
+  const z = unzipSync(new Uint8Array(data));
+  const sheet = `xl/worksheets/sheet${spec.sheetIndex}.xml`;
+  if (!z[sheet]) throw new Error("chart sheet not found");
+  const anchors = spec.charts.map((ch, i) => `<xdr:twoCellAnchor editAs="oneCell">
+<xdr:from><xdr:col>${ch.from[0]}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${ch.from[1]}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>
+<xdr:to><xdr:col>${ch.to[0]}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${ch.to[1]}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>
+<xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="${i + 2}" name="Chart ${i + 1}"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm>
+<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="rId${i + 1}"/></a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor>`).join("");
+  const REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+  z["xl/drawings/drawing1.xml"] = strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">${anchors}</xdr:wsDr>`);
+  z["xl/drawings/_rels/drawing1.xml.rels"] = strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${spec.charts.map((_, i) => `<Relationship Id="rId${i + 1}" Type="${REL}/chart" Target="../charts/chart${i + 1}.xml"/>`).join("")}</Relationships>`);
+  spec.charts.forEach((ch, i) => { z[`xl/charts/chart${i + 1}.xml`] = strToU8(chartXml(ch)); });
+
+  const relPath = `xl/worksheets/_rels/sheet${spec.sheetIndex}.xml.rels`;
+  const drawRel = `<Relationship Id="rIdDrw1" Type="${REL}/drawing" Target="../drawings/drawing1.xml"/>`;
+  z[relPath] = strToU8(z[relPath]
+    ? strFromU8(z[relPath]).replace("</Relationships>", drawRel + "</Relationships>")
+    : `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${drawRel}</Relationships>`);
+  let sx = strFromU8(z[sheet]);
+  if (!/xmlns:r=/.test(sx)) sx = sx.replace("<worksheet ", `<worksheet xmlns:r="${REL}" `);
+  z[sheet] = strToU8(sx.replace("</worksheet>", '<drawing r:id="rIdDrw1"/></worksheet>'));
+
+  let ct = strFromU8(z["[Content_Types].xml"]);
+  ct = ct.replace("</Types>", '<Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>'
+    + spec.charts.map((_, i) => `<Override PartName="/xl/charts/chart${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>`).join("") + "</Types>");
+  z["[Content_Types].xml"] = strToU8(ct);
+  return zipSync(z, { level: 6 });
 }
 
 /* ---------- unified export (up to 15 places) ---------- */
@@ -790,37 +933,46 @@ function exportMulti() {
     ["עדכון אחרון של הנתונים", DB.updated],
     ["מקור", DB.source],
     [],
+    ...LEGEND,
+    [],
     head,
   ];
-  const alertRows = [["מקום", "תחנה", "סוג", "פירוט"]];
+  const headRow = rows.length - 1, legendRow = rows.indexOf(LEGEND[0]);
+  const alertRows = [["מקום", "תחנה", "סוג", "פירוט", "פעולה נדרשת"]];
+  const chartAreas = [];
   for (const m of multi) {
     const days = Object.entries(m.loc.d).sort(([a], [b]) => a.localeCompare(b)).slice(0, DAYS);
     const alerts = officialAlerts(m.loc);
     const notes = derivedNotes(days);
     const risk = RISK[riskLevel(alerts, days)].label;
+    chartAreas.push({ label: m.label, days });
     for (const [iso, d] of days) {
       rows.push([m.label, m.loc.n, m.via ? Math.round(m.via.dist) : 0, risk, ...dayRow(m.loc, iso, d),
         alerts.length ? `${alerts.length} (ראו גיליון התרעות)` : "אין"]);
     }
     if (!alerts.length && !notes.length) alertRows.push([m.label, m.loc.n, "", "אין התרעות רשמיות לאזור זה"]);
-    alerts.forEach((a) => alertRows.push([m.label, m.loc.n, `${a.kind} (השירות המטאורולוגי)`, a.text]));
-    notes.forEach((n) => alertRows.push([m.label, m.loc.n, "הערת בטיחות לפי התחזית", `${n.day} – ${n.text}`]));
+    alerts.forEach((a) => alertRows.push([m.label, m.loc.n, `${a.kind} (השירות המטאורולוגי)`, a.text, needsCommander(a.text) ? COMMANDER : ""]));
+    notes.forEach((n) => alertRows.push([m.label, m.loc.n, "הערת בטיחות לפי התחזית", `${n.day} – ${n.text}`, needsCommander(n.text) ? COMMANDER : ""]));
   }
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
   ws["!cols"] = [24, 20, 10, 10, ...DAY_COLS, 22].map((w) => ({ wch: w }));
   ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }];
-  ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 5, c: 0 }, e: { r: rows.length - 1, c: head.length - 1 } }) };
+  ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: headRow, c: 0 }, e: { r: rows.length - 1, c: head.length - 1 } }) };
   const ws2 = XLSX.utils.aoa_to_sheet(alertRows);
-  ws2["!cols"] = [{ wch: 24 }, { wch: 20 }, { wch: 28 }, { wch: 110 }];
+  ws2["!cols"] = [{ wch: 24 }, { wch: 20 }, { wch: 28 }, { wch: 100 }, { wch: 26 }];
+  styleSheet(ws2, 0, []);
+  styleActions(ws2, 4);
 
   const wb = XLSX.utils.book_new();
   wb.Workbook = { Views: [{ RTL: true }] };
-  styleSheet(ws, 5, [7, 8, 9]);
+  styleSheet(ws, headRow, [7, 8, 9]);
+  styleLegend(ws, legendRow);
   XLSX.utils.book_append_sheet(wb, ws, "תחזית אחודה");
   XLSX.utils.book_append_sheet(wb, ws2, "התרעות ובטיחות");
+  const chart = addChartSheet(wb, chartAreas);
   const count = multi.length === 1 ? "מקום אחד" : `${multi.length} מקומות`;
-  saveWorkbook(wb, title).then((how) => {
+  saveWorkbook(wb, title, chart).then((how) => {
     if (how === "shared") multiMsg(`הקובץ האחוד מוכן, עם ${count}. כדי לשמור בטלפון בחרו "שמירה בקבצים".`);
     else if (how === "downloaded") multiMsg(`הקובץ האחוד ירד לתיקיית ההורדות, עם ${count}.`);
     else multiMsg("השמירה בוטלה. אפשר ללחוץ שוב על הורדת הקובץ.");
