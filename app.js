@@ -689,7 +689,7 @@ function exportExcel() {
   const risk = RISK[riskLevel(alerts, days)];
   const rows = [
     [title],
-    ["מקום", via && via.code ? via.name : via ? `${via.name} (תחזית מתחנת ${loc.n}, ${fmt(via.dist)} ק״מ)` : loc.n],
+    ["מקום", via ? via.name : loc.n],
     ["רמת סיכון", risk.label],
     ["תמונת מצב", briefSummary(days) + " " + risk.text],
     ["עדכון אחרון של הנתונים", DB.updated],
@@ -926,7 +926,7 @@ function exportMulti() {
   if (!multi.length) return;
   if (!window.XLSX) { multiMsg("רכיב הייצוא לאקסל עוד לא נטען. נסו שוב בעוד רגע.", true); return; }
   const title = fileTitle();
-  const head = ["מקום", "תחנת השירות המטאורולוגי", "מרחק מהתחנה (ק״מ)", "רמת סיכון", ...DAY_HEAD, "התרעות רשמיות פעילות"];
+  const head = ["מקום", "רמת סיכון", ...DAY_HEAD, "התרעות רשמיות פעילות"];
   const rows = [
     [title],
     ["מקומות", multi.length],
@@ -938,7 +938,7 @@ function exportMulti() {
     head,
   ];
   const headRow = rows.length - 1, legendRow = rows.indexOf(LEGEND[0]);
-  const alertRows = [["מקום", "תחנה", "סוג", "פירוט", "פעולה נדרשת"]];
+  const alertRows = [["מקום", "סוג", "פירוט", "פעולה נדרשת"]];
   const chartAreas = [];
   for (const m of multi) {
     const days = Object.entries(m.loc.d).sort(([a], [b]) => a.localeCompare(b)).slice(0, DAYS);
@@ -947,26 +947,26 @@ function exportMulti() {
     const risk = RISK[riskLevel(alerts, days)].label;
     chartAreas.push({ label: m.label, days });
     for (const [iso, d] of days) {
-      rows.push([m.label, m.loc.n, m.via ? Math.round(m.via.dist) : 0, risk, ...dayRow(m.loc, iso, d),
+      rows.push([m.label, risk, ...dayRow(m.loc, iso, d),
         alerts.length ? `${alerts.length} (ראו גיליון התרעות)` : "אין"]);
     }
-    if (!alerts.length && !notes.length) alertRows.push([m.label, m.loc.n, "", "אין התרעות רשמיות לאזור זה"]);
-    alerts.forEach((a) => alertRows.push([m.label, m.loc.n, `${a.kind} (השירות המטאורולוגי)`, a.text, needsCommander(a.text) ? COMMANDER : ""]));
-    notes.forEach((n) => alertRows.push([m.label, m.loc.n, "הערת בטיחות לפי התחזית", `${n.day} – ${n.text}`, needsCommander(n.text) ? COMMANDER : ""]));
+    if (!alerts.length && !notes.length) alertRows.push([m.label, "", "אין התרעות רשמיות לאזור זה"]);
+    alerts.forEach((a) => alertRows.push([m.label, `${a.kind} (השירות המטאורולוגי)`, a.text, needsCommander(a.text) ? COMMANDER : ""]));
+    notes.forEach((n) => alertRows.push([m.label, "הערת בטיחות לפי התחזית", `${n.day} – ${n.text}`, needsCommander(n.text) ? COMMANDER : ""]));
   }
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws["!cols"] = [24, 20, 10, 10, ...DAY_COLS, 22].map((w) => ({ wch: w }));
+  ws["!cols"] = [24, 10, ...DAY_COLS, 22].map((w) => ({ wch: w }));
   ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }];
   ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: headRow, c: 0 }, e: { r: rows.length - 1, c: head.length - 1 } }) };
   const ws2 = XLSX.utils.aoa_to_sheet(alertRows);
-  ws2["!cols"] = [{ wch: 24 }, { wch: 20 }, { wch: 28 }, { wch: 100 }, { wch: 26 }];
+  ws2["!cols"] = [{ wch: 24 }, { wch: 28 }, { wch: 100 }, { wch: 26 }];
   styleSheet(ws2, 0, []);
-  styleActions(ws2, 4);
+  styleActions(ws2, 3);
 
   const wb = XLSX.utils.book_new();
   wb.Workbook = { Views: [{ RTL: true }] };
-  styleSheet(ws, headRow, [7, 8, 9]);
+  styleSheet(ws, headRow, [5, 6, 7]);
   styleLegend(ws, legendRow);
   XLSX.utils.book_append_sheet(wb, ws, "תחזית אחודה");
   XLSX.utils.book_append_sheet(wb, ws2, "התרעות ובטיחות");
