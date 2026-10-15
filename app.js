@@ -638,6 +638,16 @@ function styleLegend(ws, firstRow) {
 // heat stress or any rain / flood warning → the commander must run a situation assessment
 const COMMANDER = "נדרש לבצע הערכת מצב מפקד";
 const needsCommander = (text) => /עומס חום|גש[םמ]|שטפונ/.test(text || "");
+
+// Excel safety rows: the forecast notes plus one row for any expected rain (same rule as the yellow cells)
+function excelNotes(days) {
+  const wet = days.filter(([, d]) => (d.rc ?? 0) > 0 || (d.rm ?? 0) > 0);
+  const rain = wet.length ? [{
+    day: wet.map(([iso]) => dayName(iso)).join(", "),
+    text: "צפי לגשם: " + wet.map(([iso, d]) => `${dayName(iso)} ${Math.round(d.rc ?? 0)}%${d.rm ? `, ${fmt(d.rm, 1)} מ״מ` : ""}`).join("; ") + ".",
+  }] : [];
+  return [...derivedNotes(days), ...rain];
+}
 function styleActions(ws, col) {
   const range = XLSX.utils.decode_range(ws["!ref"]);
   for (let r = 0; r <= range.e.r; r++) {
@@ -690,7 +700,8 @@ async function saveWorkbook(wb, title, chart) {
 function exportExcel() {
   if (!current) return;
   if (!window.XLSX) { setStatus("רכיב הייצוא לאקסל עוד לא נטען. נסו שוב בעוד רגע.", true); return; }
-  const { loc, days, alerts, notes, via } = current;
+  const { loc, days, alerts, via } = current;
+  const notes = excelNotes(days);
   const title = fileTitle();
   const risk = RISK[riskLevel(alerts, days)];
   const rows = [
@@ -1006,7 +1017,7 @@ function exportMulti() {
   for (const m of multi) {
     const days = Object.entries(m.loc.d).sort(([a], [b]) => a.localeCompare(b)).slice(0, DAYS);
     const alerts = officialAlerts(m.loc);
-    const notes = derivedNotes(days);
+    const notes = excelNotes(days);
     const risk = RISK[riskLevel(alerts, days)].label;
     chartAreas.push({ label: m.label, days });
     for (const [iso, d] of days) {
