@@ -626,7 +626,7 @@ const RAIN = { fill: { patternType: "solid", fgColor: { rgb: "FFE14D" } }, font:
 
 // legend rows, placed under the file header
 const LEGEND = [["מקרא צבעים"], ["אדום", "טמפרטורה מעל 30°C"], ["כחול", "טמפרטורה מתחת ל-15°C"], ["צהוב", "יש סיכוי לגשם"],
-  ["פעולה נדרשת", "מופיע ליד כל עומס חום או התרעת גשם: נדרש לבצע הערכת מצב מפקד"]];
+  ["פעולה נדרשת", "מופיע ליד כל עומס חום, עומס קור או צפי לגשם: נדרש לבצע הערכת מצב מפקד"]];
 function styleLegend(ws, firstRow) {
   ws[XLSX.utils.encode_cell({ r: firstRow, c: 0 })].s = { font: { bold: true } };
   ws[XLSX.utils.encode_cell({ r: firstRow + 1, c: 0 })].s = HOT;
@@ -637,7 +637,7 @@ function styleLegend(ws, firstRow) {
 
 // heat stress or any rain / flood warning → the commander must run a situation assessment
 const COMMANDER = "נדרש לבצע הערכת מצב מפקד";
-const needsCommander = (text) => /עומס חום|גש[םמ]|שטפונ/.test(text || "");
+const needsCommander = (text) => /עומס חום|עומס קור|גש[םמ]|שטפונ/.test(text || "");
 
 // Excel safety rows: the forecast notes plus one row for any expected rain (same rule as the yellow cells)
 function excelNotes(days) {
@@ -646,7 +646,13 @@ function excelNotes(days) {
     day: wet.map(([iso]) => dayName(iso)).join(", "),
     text: "צפי לגשם: " + wet.map(([iso, d]) => `${dayName(iso)} ${Math.round(d.rc ?? 0)}%${d.rm ? `, ${fmt(d.rm, 1)} מ״מ` : ""}`).join("; ") + ".",
   }] : [];
-  return [...derivedNotes(days), ...rain];
+  // cold load: any day dropping below 15° (same rule as the blue cells)
+  const cold = days.filter(([, d]) => [d.mn, d.mx, d.fx].some((v) => v != null && v < 15));
+  const coldRow = cold.length ? [{
+    day: cold.map(([iso]) => dayName(iso)).join(", "),
+    text: "עומס קור (מתחת ל-15°C): " + cold.map(([iso, d]) => `${dayName(iso)} מינימום ${fmt(d.mn)}°`).join("; ") + ". להצטייד בביגוד חם ולהיערך ללינה ולשהייה בשטח בקור.",
+  }] : [];
+  return [...derivedNotes(days), ...rain, ...coldRow];
 }
 function styleActions(ws, col) {
   const range = XLSX.utils.decode_range(ws["!ref"]);
