@@ -19,6 +19,14 @@
 </head>
 <body>
 
+<div class="sky" id="sky" aria-hidden="true">
+  <div class="sky-sun"></div>
+  <div class="sky-rays"></div>
+  <div class="cloud cl1"></div><div class="cloud cl2"></div><div class="cloud cl3"></div><div class="cloud cl4"></div>
+  <canvas id="skyfx"></canvas>
+  <div class="sky-flash"></div>
+</div>
+
 <header class="hero">
   <img class="hero-img" src="img/hero.jpg" alt="תא סופה (סופרסל) מעל שדה פתוח">
   <div class="hero-inner">
@@ -145,6 +153,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js" defer></script>
+<script src="sky.js" defer></script>
 <script src="bases.js" defer></script>
 <script src="codes.js" defer></script>
 <script src="app.js" defer></script>

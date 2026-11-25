@@ -25,13 +25,61 @@
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
-  background: var(--paper);
+  background: #0E161F;
   color: var(--ink);
   font: 400 16px/1.55 var(--sans);
   font-variant-numeric: tabular-nums;
 }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 :focus-visible { outline: 3px solid var(--warn-yellow); outline-offset: 2px; }
+
+/* ---------- living sky (fixed behind everything) ---------- */
+.sky {
+  position: fixed; inset: 0; z-index: -2; overflow: hidden; pointer-events: none;
+  background: radial-gradient(120% 80% at 70% 0%, #2B3A48 0%, #18222C 45%, #0E161F 100%);
+  transition: filter 4s ease;
+}
+.sky.sunny { filter: brightness(1.35) saturate(1.1); }
+#skyfx { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cloud {
+  position: absolute; border-radius: 50%; filter: blur(46px); opacity: .6;
+  background: radial-gradient(closest-side, #556372, rgba(85,99,114,0));
+  transition: opacity 4s ease;
+}
+.cl1 { width: 80vw; height: 34vh; top: -6%; right: -20vw; }
+.cl2 { width: 60vw; height: 28vh; top: 18%; right: 35vw; opacity: .45; }
+.cl3 { width: 90vw; height: 40vh; top: 48%; right: -30vw; opacity: .35; }
+.cl4 { width: 55vw; height: 26vh; top: 70%; right: 45vw; opacity: .4; }
+.sky.sunny .cloud { opacity: .18; }
+.sky-sun {
+  position: absolute; top: -18vh; left: 8vw; width: 70vmax; height: 70vmax; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255,214,120,.55), rgba(255,190,90,.18) 45%, rgba(255,190,90,0) 70%);
+  opacity: 0; transition: opacity 4s ease;
+}
+.sky-rays {
+  position: absolute; top: -30vh; left: -10vw; width: 120vmax; height: 120vmax;
+  background: repeating-conic-gradient(from 200deg at 30% 30%, rgba(255,226,160,.07) 0deg 5deg, rgba(255,226,160,0) 5deg 14deg);
+  /* hollow centre and soft edge, so the rays read as light through cloud rather than a starburst */
+  -webkit-mask-image: radial-gradient(closest-side at 30% 30%, transparent 6%, #000 22%, transparent 68%);
+          mask-image: radial-gradient(closest-side at 30% 30%, transparent 6%, #000 22%, transparent 68%);
+  filter: blur(3px);
+  opacity: 0; transition: opacity 5s ease;
+}
+.sky.sunny .sky-sun { opacity: 1; }
+.sky.sunny .sky-rays { opacity: 1; }
+.sky-flash { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 20%, rgba(210,226,255,.45), rgba(210,226,255,0) 65%); opacity: 0; }
+.sky-flash.on { animation: skyflash .9s ease-out; }
+@keyframes skyflash { 0% { opacity: .9; } 10% { opacity: .15; } 22% { opacity: .7; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: no-preference) {
+  .cl1 { animation: drift 70s linear infinite, breathe 9s ease-in-out infinite alternate; }
+  .cl2 { animation: drift 95s linear infinite -30s, breathe 11s ease-in-out infinite alternate; }
+  .cl3 { animation: drift 120s linear infinite -60s, breathe 13s ease-in-out infinite alternate; }
+  .cl4 { animation: drift 85s linear infinite -15s, breathe 10s ease-in-out infinite alternate; }
+  .sky-rays { animation: rays 60s linear infinite; }
+}
+@keyframes drift { from { translate: 0 0; } to { translate: 170vw 0; } }
+@keyframes breathe { from { scale: 1; } to { scale: 1.12; } }
+@keyframes rays { to { rotate: 25deg; } }
 
 /* ---------- Hero ---------- */
 .hero {
@@ -41,7 +89,7 @@ body {
   flex-direction: column;
   justify-content: flex-end;
   color: #fff;
-  background: var(--storm);
+  background: transparent;
   padding: calc(env(safe-area-inset-top) + 32px) var(--gutter) 0;
   isolation: isolate;
 }
@@ -50,10 +98,15 @@ body {
   width: 100%; height: 100%;
   object-fit: cover; object-position: 60% 40%;
   z-index: -1;
+  opacity: .5;                       /* the living sky shows through */
+  -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+          mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+  mix-blend-mode: luminosity;
 }
 .hero::after {
   content: ""; position: absolute; inset: 0; z-index: -1;
-  background: linear-gradient(to top, rgba(27,34,41,.92) 0%, rgba(27,34,41,.35) 45%, rgba(27,34,41,.05) 75%);
+  /* darkens behind the title for legibility, fading out at the bottom edge into the living sky */
+  background: linear-gradient(to top, rgba(14,22,31,0) 0%, rgba(14,22,31,.65) 22%, rgba(14,22,31,.2) 55%, rgba(14,22,31,0) 80%);
 }
 .hero-inner { max-width: 1100px; width: 100%; margin: 0 auto; }
 .brand {
@@ -161,10 +214,10 @@ body {
 
 /* ---------- Report ---------- */
 main { max-width: 1100px; margin: 0 auto; padding: 64px var(--gutter) 40px; }
-.status { margin: 0 0 16px; color: var(--ink-soft); min-height: 1.5em; }
-.status.err { color: var(--warn-red); font-weight: 600; }
+.status { margin: 0 0 16px; color: rgba(255,255,255,.82); min-height: 1.5em; }
+.status.err { color: #FFB4A8; font-weight: 600; }
 
-.alts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 16px; font-size: 14px; color: var(--ink-soft); }
+.alts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 16px; font-size: 14px; color: rgba(255,255,255,.8); }
 .alts:empty { display: none; }
 .alts button {
   font: 500 14px var(--sans); color: var(--isobar); background: #fff;
@@ -295,12 +348,12 @@ main { max-width: 1100px; margin: 0 auto; padding: 64px var(--gutter) 40px; }
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
   margin-top: 40px;
 }
-.gallery figure { margin: 0; background: var(--storm); color: #fff; border-radius: 4px; overflow: hidden; }
+.gallery figure { margin: 0; background: rgba(27,34,41,.85); color: #fff; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,.08); }
 .gallery img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
 .gallery figcaption { padding: 12px 14px 14px; font-size: 14px; color: rgba(255,255,255,.85); }
 
-.foot { max-width: 1100px; margin: 0 auto; padding: 8px var(--gutter) calc(32px + env(safe-area-inset-bottom)); font-size: 13px; color: var(--ink-soft); }
-.foot a { color: var(--isobar); }
+.foot { max-width: 1100px; margin: 0 auto; padding: 8px var(--gutter) calc(32px + env(safe-area-inset-bottom)); font-size: 13px; color: rgba(255,255,255,.72); }
+.foot a { color: #9CC8EC; }
 .credits { font-size: 12px; opacity: .8; }
 
 /* ---------- Mobile ---------- */
