@@ -790,6 +790,13 @@ function chartPng(areas, title) {
     if (di) { g.strokeStyle = "#D5DBE0"; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(xr, T0 - 14); g.lineTo(xr, T0 + TH); g.stroke(); g.setLineDash([]); }
     text(`${dayName(iso)} ${shortDate(iso)}`, dayX(di), T0 - 6, 13, "#1B2229", "center", 600);
   });
+  // load thresholds: above 30° heat load, below 15° cold load (same rules as the coloured cells)
+  [[30, "#C0281F", "עומס חום 30°"], [15, "#1E63C8", "עומס קור 15°"]].forEach(([v, color, label]) => {
+    if (v < lo || v > hi) return;
+    g.strokeStyle = color; g.lineWidth = 1.5; g.setLineDash([7, 5]);
+    g.beginPath(); g.moveTo(padL, yT(v)); g.lineTo(W - padR, yT(v)); g.stroke(); g.setLineDash([]);
+    text(label, padL + 4, yT(v) + 16, 12, color, "left", 700);   // under the line, clear of the day names
+  });
   areas.forEach((a, i) => {
     g.strokeStyle = SERIES_COLORS[i % SERIES_COLORS.length]; g.lineWidth = 2.2; g.lineJoin = "round";
     g.beginPath(); let started = false;
@@ -858,6 +865,23 @@ function addChartSheet(wb, areas) {
   const DATA_ROW = 36;                                   // the picture covers the rows above
   const rows = [[`${fileTitle()}: גרף מתכלל`]];
   while (rows.length < DATA_ROW) rows.push([]);
+
+  // heat / cold loads per place and day
+  const load = (d) => {
+    if (!d) return "";
+    const heat = [d.mx, d.fx].some((v) => v != null && v > 30) || (d.hs ?? 0) >= 2;
+    const cold = [d.mn, d.mx, d.fx].some((v) => v != null && v < 15);
+    return [heat ? `עומס חום (${fmt(d.mx)}°)` : "", cold ? `עומס קור (${fmt(d.mn)}°)` : ""].filter(Boolean).join(" + ");
+  };
+  rows.push(["עומסי חום וקור", ...base.map(([iso]) => `${dayName(iso)} ${shortDate(iso)}`), "פעולה נדרשת"]);
+  const lHead = rows.length - 1;
+  for (const a of areas) {
+    const cells = base.map(([iso]) => load(dayOf(a, iso)));
+    rows.push([a.label, ...cells, cells.some(Boolean) ? COMMANDER : ""]);
+  }
+  const lLast = rows.length - 1;
+  rows.push([]);
+  const tHead = rows.length;
   rows.push(["טמפרטורה (°C)", ...areas.map((a) => a.label)]);
   for (const { iso, h } of slots) rows.push([`${short(iso)} ${hh(h)}`, ...areas.map((a) => tempOf(a, iso, h))]);
   rows.push([]);
@@ -866,9 +890,19 @@ function addChartSheet(wb, areas) {
   for (const [iso] of base) rows.push([`${dayName(iso)} ${shortDate(iso)}`, ...areas.map((a) => { const d = dayOf(a, iso); return d && d.rc != null ? Math.round(d.rc) : null; })]);
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws["!cols"] = [{ wch: 18 }, ...areas.map(() => ({ wch: 12 }))];
+  ws["!cols"] = [{ wch: 18 }, ...Array.from({ length: Math.max(areas.length, base.length + 1) }, () => ({ wch: 16 }))];
   ws["A1"].s = { font: { bold: true, sz: 14 } };
-  [DATA_ROW, rHead].forEach((r) => { for (let c = 0; c <= areas.length; c++) { const cell = ws[XLSX.utils.encode_cell({ r, c })]; if (cell) cell.s = HEAD; } });
+  for (let c = 0; c <= base.length + 1; c++) { const cell = ws[XLSX.utils.encode_cell({ r: lHead, c })]; if (cell) cell.s = HEAD; }
+  for (let r = lHead + 1; r <= lLast; r++) {
+    for (let c = 1; c <= base.length; c++) {
+      const cell = ws[XLSX.utils.encode_cell({ r, c })];
+      if (cell && /חום/.test(cell.v)) cell.s = HOT;
+      else if (cell && /קור/.test(cell.v)) cell.s = COLD;
+    }
+    const act = ws[XLSX.utils.encode_cell({ r, c: base.length + 1 })];
+    if (act && act.v === COMMANDER) act.s = ACTION;
+  }
+  [tHead, rHead].forEach((r) => { for (let c = 0; c <= areas.length; c++) { const cell = ws[XLSX.utils.encode_cell({ r, c })]; if (cell) cell.s = HEAD; } });
   for (let r = rHead + 1; r < rows.length; r++) for (let c = 1; c <= areas.length; c++) {
     const cell = ws[XLSX.utils.encode_cell({ r, c })];
     if (cell && typeof cell.v === "number" && cell.v > 0) cell.s = RAIN;
