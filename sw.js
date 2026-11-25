@@ -1,4 +1,4 @@
-const CACHE = "ronen-v18";
+const CACHE = "ronen-v19";
 const SHELL = ["./", "index.html", "styles.css", "app.js", "bases.js", "codes.js", "sky.js", "manifest.json",
   "img/hero.jpg", "icons/icon-192.png"];
 

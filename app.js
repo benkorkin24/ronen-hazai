@@ -1154,9 +1154,56 @@ async function boot() {
       .catch(() => {});
   }
 
+  setupInstall();
+
   // live updates: re-check for new IMS data every 5 minutes while open, and on return to the app
   setInterval(refreshData, 5 * 60 * 1000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshData(); });
+}
+
+/* ---------- install prompt: phones only, once dismissed stays away for two weeks ---------- */
+function setupInstall() {
+  const box = $("install"), how = $("installHow"), go = $("installGo");
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  const phone = /Android|iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  let snoozed = false;
+  try { snoozed = Date.now() < +(localStorage.getItem("ronen-install-snooze") || 0); } catch (e) {}
+  if (standalone || !phone || snoozed) return;
+  $("installX").addEventListener("click", () => {
+    box.hidden = true;
+    try { localStorage.setItem("ronen-install-snooze", Date.now() + 14 * 864e5); } catch (e) {}
+  });
+
+  const ua = navigator.userAgent;
+  const inApp = /FBAN|FBAV|Instagram|Line\/|WhatsApp|Telegram/i.test(ua);
+  const ios = !/Android/.test(ua) && (/iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
+  const SHARE = '<svg viewBox="0 0 24 24" width="17" height="17" aria-label="כפתור השיתוף"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5" fill="none" stroke="#24557A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 11H5v10h14V11h-1" fill="none" stroke="#24557A" stroke-width="2" stroke-linecap="round"/></svg>';
+
+  if (inApp) {
+    how.textContent = ios ? "פתחו את הקישור ב-Safari, ואז הוסיפו למסך הבית." : "פתחו את הקישור ב-Chrome כדי להתקין.";
+    box.hidden = false;
+  } else if (ios) {
+    how.innerHTML = `לחצו על ${SHARE} ואז על "הוספה למסך הבית".`;
+    box.hidden = false;
+  } else {
+    // Android / Chrome: the browser offers a real install dialog
+    addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      how.textContent = "פותחים מהאייקון במסך הבית, במסך מלא, כמו כל אפליקציה.";
+      go.hidden = false; box.hidden = false;
+      go.onclick = async () => {
+        e.prompt();
+        const { outcome } = await e.userChoice;
+        box.hidden = true;
+        if (outcome === "accepted") setStatus("רונן החזאי הותקן. מעכשיו פותחים מהאייקון במסך הבית.");
+      };
+    });
+    // Chrome without the install event (already installed elsewhere, or other browsers): manual hint
+    setTimeout(() => {
+      if (box.hidden && go.hidden) { how.textContent = 'בתפריט ⋮ של הדפדפן בחרו "התקנת אפליקציה" או "הוספה למסך הבית".'; box.hidden = false; }
+    }, 6000);
+  }
+  addEventListener("appinstalled", () => { box.hidden = true; });
 }
 
 let refreshing = false;

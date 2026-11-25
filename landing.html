@@ -31,6 +31,7 @@
   };
 </script>
 <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
 <style>
   html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
   body { background: #EEF1F3; }
@@ -284,6 +285,10 @@
     <div class="reveal">
       <h2 class="text-3xl font-bold tracking-tight">מתקינים כמו אפליקציה, בלי חנות</h2>
       <p class="mt-3 text-lg leading-relaxed text-ink-soft">פעם אחת, וזה נפתח מהאייקון במסך הבית, במסך מלא.</p>
+      <div class="mt-6 hidden items-center gap-5 rounded-2xl border border-rule p-5 md:flex">
+        <div id="qr" class="h-32 w-32 flex-none" role="img" aria-label="קוד QR לפתיחת רונן החזאי בטלפון"></div>
+        <p class="leading-relaxed text-ink-soft"><strong class="block text-lg text-ink">סורקים עם מצלמת הטלפון</strong>והאפליקציה נפתחת מיד בטלפון. משם מתקינים לפי ההוראות כאן.</p>
+      </div>
       <div class="mt-8 space-y-4">
         <div class="lift rounded-2xl border border-rule p-6">
           <h3 class="flex items-center gap-2 text-lg font-semibold"><i data-lucide="apple" class="h-5 w-5" aria-hidden="true"></i>אייפון</h3>
@@ -412,7 +417,15 @@
     document.getElementById("liveUpdated").textContent = "";
   });
 
-  addEventListener("DOMContentLoaded", () => window.lucide && lucide.createIcons());
+  addEventListener("DOMContentLoaded", () => {
+    if (window.lucide) lucide.createIcons();
+    // QR to the app itself, for people reading this page on a computer
+    if (window.qrcode) {
+      const qr = qrcode(0, "M");
+      qr.addData(new URL("./", location.href).href); qr.make();
+      document.getElementById("qr").innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+    }
+  });
   if (window.lucide) lucide.createIcons();
 })();
 </script>
