@@ -750,7 +750,8 @@ function exportExcel() {
 // WhatsApp preview) show pictures but leave native Excel charts blank.
 const CHART_SHEET = "גרף מתכלל";
 const SERIES_COLORS = ["#24557A", "#E07A10", "#2E7D4F", "#C0281F", "#7B4FA0", "#1B9AAA", "#8C6D1F", "#D6457A",
-  "#5C6B78", "#3A7D2C", "#8C564B", "#1F77B4", "#B8860B", "#17A2B8", "#9467BD"];
+  "#5C6B78", "#3A7D2C", "#8C564B", "#1F77B4", "#B8860B", "#17A2B8", "#9467BD",
+  "#0B3954", "#F28E2B", "#59A14F", "#E15759", "#B07AA1", "#4E9F9A", "#9C755F", "#FF5FA2", "#6B8E23", "#3F51B5"];
 const CHART_W = 1000, CHART_H = 640;          // size on the sheet, in screen pixels
 
 function chartPng(areas, title) {
@@ -945,8 +946,8 @@ function injectCharts(data, spec) {
   return zipSync(z, { level: 6 });
 }
 
-/* ---------- unified export (up to 15 places) ---------- */
-const MULTI_MAX = 15;
+/* ---------- unified export (up to 25 places) ---------- */
+const MULTI_MAX = 25;
 let multi = [];   // [{query, label, loc, via}]
 
 // Same order as the main search: IDF base → IMS location → map search (first hit).
@@ -997,7 +998,7 @@ function renderMulti() {
   $("multiQ").disabled = full;
   $("multiForm").querySelector("button").disabled = full;
   if (full) $("multiQ").value = "";
-  if (full) multiMsg("הגעתם ל-15 מקומות. כדי להוסיף מקום אחר, הסירו אחד מהרשימה.");
+  if (full) multiMsg("הגעתם ל-25 מקומות. כדי להוסיף מקום אחר, הסירו אחד מהרשימה.");
 }
 
 async function addMulti(q) {
